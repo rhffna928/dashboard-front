@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { InputField } from '../atoms/InputField';
 import { Button } from '../atoms/Button';
 import axios from 'axios';
+import swlogo from '../../assets/swlogo.png';
 
 export const LoginPanel: React.FC = () => {
   const [userId, setUserId] = useState('');
@@ -56,8 +57,9 @@ export const LoginPanel: React.FC = () => {
       </div>
 
       <div className="mt-12 text-center">
-        <span className="text-2xl font-bold text-orange-600">SW</span>
-        <span className="text-sm text-gray-600 block">SAMWHAN</span>
+        <span className="w-2/5 flex m-auto">
+          <img src={swlogo}></img>
+        </span>
       </div>
     </div>
   );

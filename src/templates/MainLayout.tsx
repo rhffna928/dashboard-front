@@ -2,6 +2,7 @@
 import React from 'react';
 import { Sidebar } from '../components/organisms/Sidebar';
 import { AppHeader } from '../components/organisms/AppHeader';
+import { useNavigate } from 'react-router-dom';
 
 interface MainLayoutProps {
     activeMenu: string;
@@ -10,7 +11,17 @@ interface MainLayoutProps {
     children: React.ReactNode;
 }
 
+
+
 export const MainLayout: React.FC<MainLayoutProps> = ({ activeMenu, pageTitle, pageSubtitle, children }) => {
+
+    const navigate = useNavigate()
+
+    const handleLogout = () => {
+        localStorage.removeItem("token"); // JWT 삭제
+        navigate("/");
+    }
+
     return (
         <div className="flex min-h-screen bg-gray-100">
             <Sidebar activeMenu={activeMenu} />

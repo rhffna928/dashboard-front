@@ -27,12 +27,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
     ];
 
     return (
-        <div className="w-64 bg-slate-900 h-screen fixed">
+        <div className="top-28 w-64 bg-slate-900 h-screen fixed">
             {/* Sidebar Header/Logo Area [5] */}
             <div className="p-4 bg-gray-800 flex items-center justify-between">
                 <div>
-                    <span className="text-xl font-bold text-white">SW</span>
-                    <span className="ml-2 text-sm text-white">총괄통합</span> 
+                    <span className="text-xl font-bold text-white"></span>
+                    <span className="ml-2 text-sm text-white">님</span> 
                 </div>
                 <StatusBadge status="KW" value="3.0KW" />
             </div>

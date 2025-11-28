@@ -7,9 +7,9 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="flex h-screen">
       {/* Left Dark Panel: Background/Navigation [1] (slate-900 사용) */}
-      <div className="w-1/3 bg-slate-900 flex flex-col justify-center items-center p-10">
-        <div className="text-white text-center">
-          <h1 className="text-2xl font-bold mb-4">태양광발전</h1>
+      <div className="w-1/3 bg-slate-900 flex flex-col justify-center items-right p-10">
+        <div className="text-white text-right">
+          <h1 className="text-2xl font-bold mb-2">태양광발전</h1>
           <h1 className="text-2xl font-bold">모니터링시스템</h1>
         </div>
       </div>

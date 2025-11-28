@@ -7,6 +7,8 @@ interface AppHeaderProps {
     pageSubtitle: string;
 }
 
+const today = new Date();
+
 export const AppHeader: React.FC<AppHeaderProps> = ({ pageTitle, pageSubtitle }) => {
     // PDF [5, 6] 기반 정보 반영
     const headerInfo = {
@@ -15,7 +17,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ pageTitle, pageSubtitle })
         temp: '기온 19.0℃',
         humidity: '습도 47%',
         wind: '풍속 1.6m/s',
-        date: '2021. 10. 29. 오전 11:31:22',
+        date: {today},
     };
     
     // PDF [5]의 상단 SW 로고 및 KW 상태 반영
@@ -28,7 +30,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ pageTitle, pageSubtitle })
     );
 
     return (
-        <header className="fixed top-0 left-64 right-0 bg-white shadow-sm z-10">
+        <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-10">
             {/* Top Bar: System Info & Weather */}
             <div className="flex justify-between items-center h-12 px-6 border-b">
                 {logoArea}
