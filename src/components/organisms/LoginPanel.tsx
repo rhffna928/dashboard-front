@@ -20,7 +20,6 @@ export const LoginPanel: React.FC = () => {
       // JWT 저장
       localStorage.setItem("token", token);
 
-      alert("로그인 성공!");
       // 페이지 이동
       window.location.href = "/dashboard";
 

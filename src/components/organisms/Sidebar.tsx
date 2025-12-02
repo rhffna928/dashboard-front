@@ -27,7 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
     ];
 
     return (
-        <div className="top-28 w-64 bg-slate-900 h-screen fixed">
+        <div className="top-10 w-64 bg-slate-900 h-screen fixed">
             {/* Sidebar Header/Logo Area [5] */}
             <div className="p-4 bg-gray-800 flex items-center justify-between">
                 <div>

@@ -1,4 +1,4 @@
-import SignUpResponseDto from "./sign-up.reponse.dto";
+import type SignUpResponseDto from "./sign-up.reponse.dto";
 
 export type{
     SignUpResponseDto

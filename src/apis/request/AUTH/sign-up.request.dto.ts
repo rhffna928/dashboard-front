@@ -1,7 +1,7 @@
 export default interface SignUpRequestDto {
 
-    id: String;
-    password: String;
+    userid: String;
+    userPassword: String;
     name: String;
     belong: String;
     phone: String;

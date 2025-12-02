@@ -1,26 +1,52 @@
 // src/components/organisms/AppHeader.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBadge } from '../atoms/StatusBadge';
 
-interface AppHeaderProps {
-    pageTitle: string;
-    pageSubtitle: string;
-}
 
-const today = new Date();
-
-export const AppHeader: React.FC<AppHeaderProps> = ({ pageTitle, pageSubtitle }) => {
-    // PDF [5, 6] 기반 정보 반영
-    const headerInfo = {
+export const AppHeader: React.FC = () => {
+    // 기반 정보 반영
+    const [headerInfo, setHeaderInfo] = useState({
         kwStatus: '3.0KW', // [5]
         location: '남해',
         temp: '기온 19.0℃',
         humidity: '습도 47%',
         wind: '풍속 1.6m/s',
-        date: {today},
+        date: '',
+    });
+    // 시간 포매터
+    const formatTime = () => {
+    const now = new Date();
+    const pad = (n) => (n < 10 ? '0' + n : n);
+
+        return (
+            `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()}. ` +
+            `${now.getHours() >= 12 ? '오후' : '오전'} ` +
+            `${pad(now.getHours() % 12 || 12)}:${pad(now.getMinutes())}
+            ${pad(now.getSeconds()
+            )}`
+        );
     };
-    
-    // PDF [5]의 상단 SW 로고 및 KW 상태 반영
+
+    useEffect(() => {
+        // 처음 로딩 시 즉시 시간 세팅
+        setHeaderInfo((prev) =>({
+            ...prev,
+            date: formatTime(),
+        }));
+        const clock = setInterval(() => {
+            setHeaderInfo((prev) => ({
+                ...prev,
+                date:formatTime(),
+            }));
+        },1000);
+
+        return () => {
+            clearInterval(clock);
+        };
+    },[]);
+
+
+    // 상단 SW 로고 및 KW 상태 반영
     const logoArea = (
         <div className="flex items-center space-x-2">
             <span className="text-lg font-bold text-orange-600">SW</span>
@@ -37,20 +63,24 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ pageTitle, pageSubtitle })
                 
                 {/* Weather and Time Info [5] */}
                 <div className="text-xs text-gray-500 flex space-x-4">
-                    <span>{headerInfo.location}</span>
-                    <span>{headerInfo.temp}</span>
-                    <span>{headerInfo.humidity}</span>
-                    <span>{headerInfo.wind}</span>
-                    <span className='text-gray-700 font-medium'>{headerInfo.date}</span>
+                    <span>
+                        {headerInfo.location}
+                    </span>
+                    <span>
+                        {headerInfo.temp}
+                    </span>
+                    <span>
+                        {headerInfo.humidity}
+                    </span>
+                    <span>
+                        {headerInfo.wind}
+                    </span>
+                    <span className='text-gray-700 font-medium'>
+                        {headerInfo.date}
+                    </span>
                 </div>
             </div>
             
-            {/* Page Title Bar (Red/Orange Gradient) [5] */}
-            <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-4">
-                <h1 className="text-2xl font-semibold">
-                    {pageTitle} <span className="text-base font-light opacity-80">{pageSubtitle}</span>
-                </h1>
-            </div>
         </header>
     );
 };
