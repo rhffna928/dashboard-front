@@ -5,9 +5,14 @@ import axios from 'axios';
 import swlogo from '../../assets/swlogo.png';
 
 export const LoginPanel: React.FC = () => {
+  //          state: 아이디 상태          //
   const [userId, setUserId] = useState('');
+  //          state: 패스워드 상태          //
   const [userPassword, setUserPassword] = useState('');
-
+  //          state: 패스워드 타입          //
+  const [passwordType, setPasswordType] = useState<'text' | 'password'>('password');
+  //          state: 패스워드 버튼 아이콘 상태          //
+  const [PasswordButton, setPasswordButton] = useState('');
   const handleLogin = async () => {
     try {
       const response = await axios.post("http://localhost:4000/api/v1/auth/sign-in", {
