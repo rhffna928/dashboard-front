@@ -1,6 +1,7 @@
 // src/pages/LoginPage.tsx (AuthLayout 역할 포함)
 import React from 'react';
 import { LoginPanel } from '../components/organisms/LoginPanel';
+import { CookiesProvider } from 'react-cookie';
 
 export const LoginPage: React.FC = () => {
   // PDF [1, 4]의 2분할 레이아웃 반영
@@ -16,7 +17,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Right Login Panel Area */}
       <div className="w-2/3 flex items-center justify-center bg-gray-50">
-        <LoginPanel />
+          <LoginPanel />
       </div>
     </div>
   );

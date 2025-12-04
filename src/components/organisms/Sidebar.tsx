@@ -1,13 +1,38 @@
 // src/components/organisms/Sidebar.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavItem } from '../molecules/NavItem';
 import { StatusBadge } from '../atoms/StatusBadge';
+import { useCookies } from 'react-cookie';
+import { getSignInUserRequest } from '../../apis';
+
 
 interface SidebarProps {
     activeMenu: string;
 }
 
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
+
+    const [cookies,setCookie] = useCookies();
+    const [userInfo, setUserInfo] = useState<any>(null); // 유저 정보 상태
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const token = cookies.accessToken;
+        console.log(token)
+        if (!token) {
+        setError('Error fetching user info');
+        } else {
+        getSignInUserRequest(token).then((response) => {
+            if (response && response.code === 'SU') {
+            setUserInfo(response.userId); // 정상적인 사용자 정보 설정
+            } else {
+            setError('Error fetching user info');
+            }
+        });
+        }
+    }, [cookies.accessToken]);
+
     // PDF [5, 6, 20]의 메뉴 구조 반영
     const menuData = [
         { title: '대시보드', icon: '🏠', path: 'dashboard' },
@@ -32,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
             <div className="p-4 bg-gray-800 flex items-center justify-between">
                 <div>
                     <span className="text-xl font-bold text-white"></span>
-                    <span className="ml-2 text-sm text-white">님</span> 
+                    <span className="ml-2 text-sm text-white">{userInfo}님</span> 
                 </div>
                 <StatusBadge status="KW" value="3.0KW" />
             </div>

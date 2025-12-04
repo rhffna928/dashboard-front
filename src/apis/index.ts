@@ -9,7 +9,7 @@ const DOMAIN = 'http://localhost:4000';
 const API_DOMAIN = `${DOMAIN}/api/v1`;
 
 const authorization = (accessToken:string) => {
-    return {headers: {authorization: 'Bearer ${accessToken}'}}
+    return {headers: {authorization: `Bearer ${accessToken}`}}
 }
 
 const SIGN_IN_URL = () => `${API_DOMAIN}/auth/sign-in`;
@@ -44,7 +44,9 @@ export const SignUpRequest = async (requestBody: SignUpRequestDto) => {
     return result;
 }
 
-const GET_SIGN_IN_USER_URL = () => '${API_DOMAIN/}/user';
+
+const GET_SIGN_IN_USER_URL = () => `${API_DOMAIN}/user`;
+
 
 export const getSignInUserRequest = async (accessToken:string) => {
     const result = await axios.get(GET_SIGN_IN_USER_URL(),authorization(accessToken))

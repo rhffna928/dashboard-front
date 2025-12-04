@@ -3,16 +3,57 @@ import { InputField } from '../atoms/InputField';
 import { Button } from '../atoms/Button';
 import axios from 'axios';
 import swlogo from '../../assets/swlogo.png';
+import type { SignInRequestDto } from 'apis/request/auth';
+import { signInRequest } from '../../apis';
+import type SignInResponseDto from 'apis/response/auth/sign-in.response.dto';
+import type { ResponseDto } from 'apis/response';
+import { useCookies } from 'react-cookie';
+import { useNavigate } from 'react-router-dom';
+import { AUTH_PATH, MAIN_PATH } from '../../constant';
 
 export const LoginPanel: React.FC = () => {
+  
+  //          state: 쿠키 상태          //
+  const [cookies, setCookie] = useCookies();
+  // 에러 상태 //
+  const navigator = useNavigate();
   //          state: 아이디 상태          //
   const [userId, setUserId] = useState('');
   //          state: 패스워드 상태          //
   const [userPassword, setUserPassword] = useState('');
-  //          state: 패스워드 타입          //
-  const [passwordType, setPasswordType] = useState<'text' | 'password'>('password');
-  //          state: 패스워드 버튼 아이콘 상태          //
-  const [PasswordButton, setPasswordButton] = useState('');
+
+  // 에러 상태 //
+  const [error, setError] = useState<boolean>(false);
+  
+  // function: sign in response 처리 함수 //
+  const signInResponse = (responseBody: SignInResponseDto | ResponseDto | null) =>{
+    console.log(responseBody)
+    if(!responseBody) {
+      alert("네트워크 이상입니다.");
+      return;
+    }
+    const { code } = responseBody;
+    if(code === 'AF') alert("모두 입력하세요.");
+    if(code === 'DBE') alert("데이터베이스 ERROR");
+    if(code === 'SF' || code === 'VF') setError(true);
+    if(code === 'SU'){
+
+      const { token, expirationTime } = responseBody as SignInResponseDto;
+      const now = new Date().getTime();
+      const expires = new Date(now + expirationTime * 1000);
+
+      setCookie('accessToken', token, {expires, path: MAIN_PATH()});
+      console.log("Redirecting to: ", MAIN_PATH());
+      window.location.href = MAIN_PATH();
+    }
+  }
+
+  const onSignInButtonClickHandler = async () =>{
+    //console.log(signInResponse)
+    const requsetBody: SignInRequestDto = {userId,userPassword};
+
+    await signInRequest(requsetBody).then(signInResponse); 
+  }
   const handleLogin = async () => {
     try {
       const response = await axios.post("http://localhost:4000/api/v1/auth/sign-in", {
@@ -27,7 +68,7 @@ export const LoginPanel: React.FC = () => {
 
       // 페이지 이동
       window.location.href = "/dashboard";
-
+    
     } catch (error: any) {
       console.error(error);
       alert("로그인 실패: ID 또는 PW를 확인해주세요.");
@@ -55,7 +96,7 @@ export const LoginPanel: React.FC = () => {
       />
 
       <div className="mt-6">
-        <Button primary className="w-full text-lg" onClick={handleLogin}>
+        <Button primary className="w-full text-lg" onClick={onSignInButtonClickHandler}>
           로그인
         </Button>
       </div>
