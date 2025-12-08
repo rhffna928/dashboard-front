@@ -2,7 +2,6 @@
 import React from 'react';
 import { Sidebar } from '../components/organisms/Sidebar';
 import { AppHeader } from '../components/organisms/AppHeader';
-import { useNavigate } from 'react-router-dom';
 
 interface MainLayoutProps {
     activeMenu: string;
@@ -12,12 +11,6 @@ interface MainLayoutProps {
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ activeMenu, children}) => {
 
-    const navigate = useNavigate()
-
-    const handleLogout = () => {
-        localStorage.removeItem("token"); // JWT 삭제
-        navigate("/");
-    }
 
     return (
         <div className="flex min-h-screen bg-gray-100">

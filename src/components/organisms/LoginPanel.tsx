@@ -54,26 +54,6 @@ export const LoginPanel: React.FC = () => {
 
     await signInRequest(requsetBody).then(signInResponse); 
   }
-  const handleLogin = async () => {
-    try {
-      const response = await axios.post("http://localhost:4000/api/v1/auth/sign-in", {
-        userId: userId,
-        userPassword: userPassword
-      });
-
-      const token = response.data.token;
-
-      // JWT 저장
-      localStorage.setItem("token", token);
-
-      // 페이지 이동
-      window.location.href = "/dashboard";
-    
-    } catch (error: any) {
-      console.error(error);
-      alert("로그인 실패: ID 또는 PW를 확인해주세요.");
-    }
-  };
 
   return (
     <div className="w-full max-w-sm p-8 bg-white shadow-xl rounded-lg">

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { SignInRequestDto, SignUpRequestDto } from './request/auth';
-import type { SignInResponseDto, SignUpResponseDto } from './response/auth';
+import type { SignUpResponseDto, SignInResponseDto } from './response/auth';
 import type { ResponseDto } from './response';
 import type { GetSignInUserResponseDto } from './response/user';
 
