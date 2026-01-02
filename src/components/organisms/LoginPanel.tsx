@@ -76,7 +76,8 @@ export const LoginPanel: React.FC = () => {
       />
 
       <div className="mt-6">
-        <Button primary className="w-full text-lg" onClick={onSignInButtonClickHandler}>
+        <Button primary className="w-full text-lg" onClick={onSignInButtonClickHandler}
+          type="submit">
           로그인
         </Button>
       </div>

@@ -4,7 +4,10 @@ import { NavItem } from '../molecules/NavItem';
 import { StatusBadge } from '../atoms/StatusBadge';
 import { useCookies } from 'react-cookie';
 import { getSignInUserRequest } from '../../apis';
-
+import useLoginUserStore from '../../stores/login-user.store';
+import { useNavigate } from 'react-router-dom';
+import { AUTH_PATH } from '../../constant';
+import { Button } from '../atoms/Button';
 
 interface SidebarProps {
     activeMenu: string;
@@ -12,15 +15,33 @@ interface SidebarProps {
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
-
-    const [cookies,setCookie] = useCookies();
+    const navigate = useNavigate();
+    const { resetLoginUser } = useLoginUserStore();
+    const [cookies , , removeCookie] = useCookies(["accessToken"]);
     const [userInfo, setUserInfo] = useState<any>(null); // 유저 정보 상태
     const [error, setError] = useState<string | null>(null);
 
+    // ✅ 로그아웃 공통 처리
+    const logout = (reason?: string) => {
+        // 1) 전역 유저 상태 초기화
+        resetLoginUser();
+
+        // 2) 토큰 쿠키 제거 (중요: path 지정해야 제대로 삭제됨)
+        removeCookie("accessToken", { path: "/" });
+
+        // 3) 화면 상태도 정리
+        setUserInfo(null);
+        setError(reason ?? null);
+
+        // 4) 로그인으로 이동
+        navigate(AUTH_PATH(), { replace: true });
+    };
     useEffect(() => {
         const token = cookies.accessToken;
         console.log(token)
         if (!token) {
+            alert("세션 만료")
+            logout("세션 만료")
         setError('Error fetching user info');
         } else {
         getSignInUserRequest(token).then((response) => {
@@ -35,17 +56,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
 
     // PDF [5, 6, 20]의 메뉴 구조 반영
     const menuData = [
-        { title: '대시보드', icon: '🏠', path: 'dashboard' },
-        { title: '인버터', icon: '🔋', path: 'inverter' },
-        { title: '트렌드', icon: '📈', path: 'trend' },
-        { title: '보고서', icon: '📰', path: 'report' },
-        { title: '기록', icon: '📄', path: 'history' },
-        { title: '알림', icon: '🔔', path: 'alert' },
+        { title: '대시보드', icon: '🏠', path: '/dashboard' },
+        { title: '인버터', icon: '🔋', path: '/inverter' },
+        { title: '트렌드', icon: '📈', path: '/trend' },
+        { title: '보고서', icon: '📰', path: '/report' },
+        { title: '기록', icon: '📄', path: '/history' },
+        { title: '알림', icon: '🔔', path: '/alert' },
         {
           title: '관리', icon: '⚙️', subItems: [
-            { title: '발전소 관리', path: 'plant-management' }, // [20]
-            { title: '설비 관리', path: 'device-management' }, // [22]
-            { title: '사용자 관리', path: 'user-management' }, // [23]
+            { title: '발전소 관리', path: '/plant-management' }, 
+            { title: '설비 관리', path: '/device-management' }, 
+            { title: '사용자 관리', path: '/user-management' },
           ],
           path: 'management'
         },
@@ -59,7 +80,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
                     <span className="text-xl font-bold text-white"></span>
                     <span className="ml-2 text-sm text-white">{userInfo}님</span> 
                 </div>
-                <StatusBadge status="KW" value="3.0KW" />
+                {/* ✅ 수동 로그아웃도 동작하게 */}
+                <Button primary className="text-lg" onClick={() => logout()}>
+                    로그아웃
+                </Button>
             </div>
 
             {/* Navigation Items */}
