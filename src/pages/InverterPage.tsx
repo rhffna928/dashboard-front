@@ -1,7 +1,10 @@
 import React from "react";
-import InverterPowerChart, { InverterPowerPoint } from "../components/organisms/InverterPowerChart";
+import { MainLayout } from "../templates/MainLayout";
+import { PageHeaderMetrics } from '../components/organisms/PageHeader';
+import InverterPowerChart from "../components/organisms/InverterPowerChart";
+import type { InverterPowerPoint } from "../components/organisms/InverterPowerChart";
 
-const mock: InverterPowerPoint[] = [
+const mockData: InverterPowerPoint[] = [
   { timestamp: "2025-12-26T05:00:00+09:00", powerKw: 0.0 },
   { timestamp: "2025-12-26T06:00:00+09:00", powerKw: 0.0 },
   { timestamp: "2025-12-26T07:00:00+09:00", powerKw: 0.3 },
@@ -16,10 +19,17 @@ const mock: InverterPowerPoint[] = [
   { timestamp: "2025-12-26T16:00:00+09:00", powerKw: 0.2 },
 ];
 
-export default function InverterPage() {
+export const InverterPage: React.FC = () => {
   return (
-    <div style={{ padding: 16 }}>
-      <InverterPowerChart title="인버터 전력 그래프" data={mock} />
-    </div>
+    <MainLayout activeMenu="/inverter">
+      <div className="space-y-6">
+        <PageHeaderMetrics pageTitle="인버터" pageSubtitle="Inverter" />
+
+        <InverterPowerChart
+          title="인버터 전력 그래프"
+          data={mockData}
+        />
+      </div>
+    </MainLayout>
   );
-}
+};
