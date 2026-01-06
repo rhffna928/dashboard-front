@@ -19,6 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
     const { resetLoginUser } = useLoginUserStore();
     const [cookies , , removeCookie] = useCookies(["accessToken"]);
     const [userInfo, setUserInfo] = useState<any>(null); // 유저 정보 상태
+    const [userAuth, setUserAuth] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // ✅ 로그아웃 공통 처리
@@ -40,20 +41,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
         const token = cookies.accessToken;
         console.log(token)
         if (!token) {
-            alert("세션 만료")
-            logout("세션 만료")
+            alert("세션 만료");
+            logout("세션 만료");
         setError('Error fetching user info');
         } else {
         getSignInUserRequest(token).then((response) => {
             if (response && response.code === 'SU') {
-            setUserInfo(response.userId); // 정상적인 사용자 정보 설정
+                setUserAuth(response.auth);
+                setUserInfo(response.userId); // 정상적인 사용자 정보 설정
             } else {
-            setError('Error fetching user info');
+                setError('Error fetching user info');
             }
         });
         }
     }, [cookies.accessToken]);
-
+    const isAdmin = userAuth === "5";
     // PDF [5, 6, 20]의 메뉴 구조 반영
     const menuData = [
         { title: '대시보드', icon: '🏠', path: '/dashboard' },
@@ -90,7 +92,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
             <nav className="mt-5">
                 {/* 상단 탭 (대시보드 옆의 '총괄통합')은 단순 Placeholder 처리 [5] */}
                 <div className="text-gray-500 text-sm px-6 mb-2">총괄통합 메뉴</div>
-                {menuData.map((item) => (
+                
+                {menuData  
+                    .filter((item) => item.title !== '관리' || isAdmin)
+                    .map((item) => (
                     <NavItem 
                         key={item.title} 
                         title={item.title} 

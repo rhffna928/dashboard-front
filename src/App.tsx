@@ -3,17 +3,22 @@ import { useEffect } from 'react';
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CookiesProvider, useCookies } from 'react-cookie';
-import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { InverterPage } from './pages/InverterPage';
-import { TrendPage } from './pages/TrendPage';
-import { ReportPage } from './pages/ReportPage';
 import { ALERT_PATH, AUTH_PATH, DMNG_PATH, HIST_PATH, INVT_PATH, MAIN_PATH, PTMNG_PATH, REPT_PATH, TRND_PATH, UMNG_PATH } from './constant';
 import useLoginUserStore from './stores/login-user.store';
 import type { GetSignInUserResponseDto } from 'apis/response/user';
 import type { ResponseDto } from 'apis/response';
 import type User from 'types/interface/user.interface';
 import { getSignInUserRequest } from './apis';
+import { LoginPage } from './pages/LoginPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { InverterPage } from './pages/InverterPage';
+import { TrendPage } from './pages/TrendPage';
+import { ReportPage } from './pages/ReportPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { AlertPage } from './pages/AlertPage';
+import { PlantMngtPage } from './pages/PlaneMngtPage';
+import { DeviceMngtPage } from './pages/DeviceMngtPage';
+import { UserMngtPage } from './pages/UserMngtPage';
 
 function App() {
 
@@ -52,11 +57,11 @@ function App() {
       <Route path={INVT_PATH()} element={<InverterPage />} />
       <Route path={TRND_PATH()} element={<TrendPage />} />
       <Route path={REPT_PATH()} element={<ReportPage />} />
-      {/* <Route path={HIST_PATH()} element={<HistoryPage />} /> */}
-      {/* <Route path={ALERT_PATH()} element={<AlertPage />} /> */}
-      {/* <Route path={PTMNG_PATH()} element={<PlantManagementPage />} /> */}
-      {/* <Route path={DMNG_PATH()} element={<DeviceManagementPage />} /> */}
-      {/* <Route path={UMNG_PATH()} element={<UserManagementPage />} /> */}
+      <Route path={HIST_PATH()} element={<HistoryPage />} />
+      <Route path={ALERT_PATH()} element={<AlertPage />} />
+      <Route path={PTMNG_PATH()} element={<PlantMngtPage />} />
+      <Route path={DMNG_PATH()} element={<DeviceMngtPage />} />
+      <Route path={UMNG_PATH()} element={<UserMngtPage />} />
     </Routes>
   );
 }

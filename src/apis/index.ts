@@ -2,7 +2,8 @@ import axios from 'axios';
 import type { SignInRequestDto, SignUpRequestDto } from './request/auth';
 import type { SignUpResponseDto, SignInResponseDto } from './response/auth';
 import type { ResponseDto } from './response';
-import type { GetSignInUserResponseDto } from './response/user';
+import type { GetSignInUserResponseDto,GetAdminUserListResponseDto } from './response/user';
+import type {} from './response/user';
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -52,6 +53,22 @@ export const getSignInUserRequest = async (accessToken:string) => {
     const result = await axios.get(GET_SIGN_IN_USER_URL(),authorization(accessToken))
         .then(response => {
             const responseBody: GetSignInUserResponseDto = response.data;
+            return responseBody;
+        })
+        .catch(error =>{
+            if(!error.responst) return null;
+            const responseBody: ResponseDto = error.responst.data;
+            return responseBody;
+        });
+    return result;
+}
+
+const GET_ADMIN_USER_LIST = () => `${API_DOMAIN}/admin/users`;
+
+export const getAdminUsersRequest = async(accessToken: string) => {
+    const result = await axios.get(GET_ADMIN_USER_LIST(),authorization(accessToken))
+        .then(response => {
+            const responseBody: GetAdminUserListResponseDto = response.data;
             return responseBody;
         })
         .catch(error =>{
