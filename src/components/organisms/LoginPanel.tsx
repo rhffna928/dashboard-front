@@ -3,10 +3,10 @@ import { InputField } from '../atoms/InputField';
 import { Button } from '../atoms/Button';
 import axios from 'axios';
 import swlogo from '../../assets/swlogo.png';
-import type { SignInRequestDto } from 'apis/request/auth';
+import type { SignInRequestDto } from '../../apis/request/auth';
 import { signInRequest } from '../../apis';
-import type SignInResponseDto from 'apis/response/auth/sign-in.response.dto';
-import type { ResponseDto } from 'apis/response';
+import type SignInResponseDto from '../../apis/response/auth/sign-in.response.dto';
+import type { ResponseDto } from '../../apis/response';
 import { useCookies } from 'react-cookie';
 import { useNavigate } from 'react-router-dom';
 import { AUTH_PATH, MAIN_PATH } from '../../constant';
@@ -27,22 +27,24 @@ export const LoginPanel: React.FC = () => {
   
   // function: sign in response 처리 함수 //
   const signInResponse = (responseBody: SignInResponseDto | ResponseDto | null) =>{
-    console.log(responseBody)
-    if(!responseBody) {
+    alert(responseBody.code)
+    if(!responseBody.code) {
       alert("네트워크 이상입니다.");
       return;
     }
-    const { code } = responseBody;
-    if(code === 'AF') alert("모두 입력하세요.");
-    if(code === 'DBE') alert("데이터베이스 ERROR");
-    if(code === 'SF' || code === 'VF') setError(true);
-    if(code === 'SU'){
+    
+    if(responseBody.code === 'AF') alert("인증 실패");
+    if(responseBody.code === 'VF') alert("아이디와 비밀번호 모두 확인하세요.");
+    if(responseBody.code === 'DBE') alert("데이터베이스 ERROR");
+    if(responseBody.code === 'SF') setError(true);
+    if(responseBody.code === 'SU'){
 
       const { token, expirationTime } = responseBody as SignInResponseDto;
       const now = new Date().getTime();
       const expires = new Date(now + expirationTime * 1000);
 
       setCookie('accessToken', token, {expires, path: MAIN_PATH()});
+      alert(token)
       console.log("Redirecting to: ", MAIN_PATH());
       window.location.href = MAIN_PATH();
     }

@@ -4,6 +4,8 @@ import { useCookies } from "react-cookie";
 import { MainLayout } from "../templates/MainLayout";
 import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 import { getAdminUsersRequest } from "../apis";
+import { Button } from '../components/atoms/Button';
+import { UserCreateModal } from "../components/organisms/UserCreateModal";
 
 type ModalMode = "none" | "detail" | "create";
 
@@ -69,6 +71,7 @@ export const UserMngtPage: React.FC = () => {
 
   const [mode, setMode] = React.useState<ModalMode>("none");
   const [selected, setSelected] = React.useState<AdminUserSummary | null>(null);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const fetchUsers = React.useCallback(async () => {
     setLoading(true);
@@ -121,13 +124,12 @@ export const UserMngtPage: React.FC = () => {
             <div className="text-slate-900 font-semibold">사용자 목록</div>
 
             <div className="flex gap-2">
-              <button
-                type="button"
+              <Button
                 onClick={fetchUsers}
                 className="px-3 py-2 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 text-sm"
               >
                 새로고침
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -135,11 +137,11 @@ export const UserMngtPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
-                  <th className="text-left font-medium px-4 py-3 w-[180px]">아이디</th>
-                  <th className="text-left font-medium px-4 py-3 w-[160px]">성명</th>
+                  <th className="text-left font-medium px-4 py-3">아이디</th>
+                  <th className="text-left font-medium px-4 py-3">성명</th>
                   <th className="text-left font-medium px-4 py-3">정보</th>
-                  <th className="text-left font-medium px-4 py-3 w-[200px]">핸드폰 번호</th>
-                  <th className="text-center font-medium px-4 py-3 w-[120px]">상세</th>
+                  <th className="text-left font-medium px-4 py-3 w-[300px]">핸드폰 번호</th>
+                  <th className="text-center font-medium px-4 py-3">상세</th>
                 </tr>
               </thead>
 
@@ -165,6 +167,7 @@ export const UserMngtPage: React.FC = () => {
                 ) : (
                   users.map((u, idx) => (
                     <tr key={u.userId} className={cn(idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
+                      
                       <td className="px-4 py-3 text-slate-900">{u.userId}</td>
                       <td className="px-4 py-3 text-slate-900">{u.userName}</td>
                       <td className="px-4 py-3 text-slate-700">{u.memo}</td>
@@ -186,17 +189,22 @@ export const UserMngtPage: React.FC = () => {
           </div>
 
           <div className="flex justify-end mt-4">
-            <button
-              type="button"
-              onClick={openCreate}
+            <Button primary 
+              onClick={() => setCreateOpen(true)}
               className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
             >
               신규 등록
-            </button>
+            </Button>
           </div>
         </section>
       </div>
 
+      <UserCreateModal
+        open={createOpen}
+        accessToken={token}
+        onClose={() => setCreateOpen(false)}
+        onCreated={fetchUsers}
+      />
       {/* 상세 모달(목록 데이터로 표시) */}
       <Modal
         open={mode === "detail"}
@@ -205,13 +213,12 @@ export const UserMngtPage: React.FC = () => {
         onClose={closeModal}
         footer={
           <div className="flex justify-end">
-            <button
-              type="button"
+            <Button
               onClick={closeModal}
               className="px-4 py-2 rounded bg-slate-200 text-slate-800 hover:bg-slate-300"
             >
               닫기
-            </button>
+            </Button>
           </div>
         }
       >
@@ -220,16 +227,20 @@ export const UserMngtPage: React.FC = () => {
         ) : (
           <div className="space-y-3 text-sm">
             <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-3 text-slate-500">번호</div>
+              <div className="col-span-9 text-slate-900">{selected.id}</div>
+            </div>
+            <div className="grid grid-cols-12 gap-3">
               <div className="col-span-3 text-slate-500">아이디</div>
               <div className="col-span-9 text-slate-900">{selected.userId}</div>
             </div>
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-3 text-slate-500">성명</div>
-              <div className="col-span-9 text-slate-900">{selected.name}</div>
+              <div className="col-span-9 text-slate-900">{selected.userName}</div>
             </div>
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-3 text-slate-500">소속</div>
-              <div className="col-span-9 text-slate-900">{selected.org}</div>
+              <div className="col-span-9 text-slate-900">{selected.memo}</div>
             </div>
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-3 text-slate-500">핸드폰</div>

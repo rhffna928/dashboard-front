@@ -1,8 +1,10 @@
 export default interface SignUpRequestDto {
 
-    userid: String;
+    userId: String;
     userPassword: String;
     name: String;
-    belong: String;
+    memo: String;
     phone: String;
+    auth: number;
+    email: String;
 }

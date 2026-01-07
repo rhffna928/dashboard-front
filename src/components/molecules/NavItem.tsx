@@ -68,11 +68,13 @@ export const NavItem: React.FC<NavItemProps> = ({
   const headerClass = [
     "w-full flex items-center justify-between px-6 py-3 text-left",
     "text-white hover:bg-slate-800",
+    "cursor-pointer select-none",              // ✅ 추가
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
     isActive ? "bg-slate-800 font-semibold" : "",
   ].join(" ");
 
   const arrowClass = [
-    "text-gray-400 transition-transform duration-200",
+    "text-gray-500 transition-transform duration-200",
     open ? "rotate-90" : "rotate-0",
   ].join(" ");
 
@@ -96,7 +98,7 @@ export const NavItem: React.FC<NavItemProps> = ({
       {/* 서브메뉴: 조건부 렌더링 금지(항상 렌더링), height로 애니메이션 */}
       {hasSub && (
         <div
-          className="overflow-hidden transition-all duration-300 ease-in-out"
+          className="overflow-hidden transition-all duration-300 ease-in-out "
           style={{
             height,                     // ✅ 핵심: height 애니메이션
             opacity: open ? 1 : 0,       // 페이드

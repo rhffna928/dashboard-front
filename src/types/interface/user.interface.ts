@@ -1,5 +1,9 @@
 export default interface User{
-    userId: String;
-    userName: String;
-    
+    id: number;
+    userId: string;
+    userName: string;
+    memo?: string;
+    phone?: string;
+    auth?: string;
+    email?: string;
 }
