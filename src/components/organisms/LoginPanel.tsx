@@ -50,6 +50,7 @@ export const LoginPanel: React.FC = () => {
 
   const onSignInButtonClickHandler = async () =>{
     //console.log(signInResponse)
+    debugger;
     const requsetBody: SignInRequestDto = {userId,userPassword};
 
     await signInRequest(requsetBody).then(signInResponse); 
