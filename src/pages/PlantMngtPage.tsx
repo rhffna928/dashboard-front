@@ -9,24 +9,13 @@ export const PlantMngtPage: React.FC = () => {
   const [plants, setPlants] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchPlants()
-      .then((data) => {
-        console.log("plants response:", data);
-        setPlants(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => {
-        console.error("fetchPlants error:", err);
-        setPlants([]);
-      });
+    fetchPlants().then(setPlants);
   }, []);
 
   return (
     <MainLayout activeMenu="/plant-management">
       <div className="space-y-6">
-        <PageHeaderMetrics
-          pageTitle="발전소 관리"
-          pageSubtitle="Plant Management"
-        />
+        <PageHeaderMetrics pageTitle="발전소 관리" pageSubtitle="Plant Management" />
 
         <div className="bg-white border rounded p-4">
           <PlantTable plants={plants} />
