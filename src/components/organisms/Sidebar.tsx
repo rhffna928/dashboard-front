@@ -41,7 +41,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
         const token = cookies.accessToken;
         console.log(token)
         if (!token) {
-            alert("세션 만료");
             logout("세션 만료");
         setError('Error fetching user info');
         } else {
@@ -55,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
         });
         }
     }, [cookies.accessToken]);
-    const isAdmin = userAuth === "5";
+    const isAdmin = userAuth === '5';
     // PDF [5, 6, 20]의 메뉴 구조 반영
     const menuData = [
         { title: '대시보드', icon: '🏠', path: '/dashboard' },
@@ -73,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
           path: 'management'
         },
     ];
+
 
     return (
         <div className="top-10 w-64 bg-slate-900 h-screen fixed">

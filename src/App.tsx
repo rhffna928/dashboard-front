@@ -16,7 +16,7 @@ import { TrendPage } from './pages/TrendPage';
 import { ReportPage } from './pages/ReportPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { AlertPage } from './pages/AlertPage';
-import { PlantMngtPage } from './pages/PlaneMngtPage';
+import { PlantMngtPage } from './pages/PlantMngtPage';
 import { DeviceMngtPage } from './pages/DeviceMngtPage';
 import { UserMngtPage } from './pages/UserMngtPage';
 
