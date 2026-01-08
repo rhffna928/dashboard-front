@@ -4,6 +4,8 @@ import type { SignUpResponseDto, SignInResponseDto } from './response/auth';
 import type { ResponseDto } from './response';
 import type { GetSignInUserResponseDto,GetAdminUserListResponseDto } from './response/user';
 import type {} from './response/user';
+import type UpdateUserRequestDto from './request/admin/update-user.request.dto';
+import type { UpdateUserResponseDto } from './response/admin';
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -78,3 +80,39 @@ export const getAdminUsersRequest = async(accessToken: string) => {
         });
     return result;
 }
+const PUT_ADMIN_USER_DELETE = (userId: string) => `${API_DOMAIN}/admin/users/${encodeURIComponent(userId)}`;
+
+export const adminUserDeleteRequest = async (
+  userId: string,
+  accessToken: string
+): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.delete(
+      PUT_ADMIN_USER_DELETE(userId),
+      authorization(accessToken) // <-- headers config
+    );
+    return response.data as UpdateUserResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+const PUT_ADMIN_USER_UPDATE = (userId: string) => `${API_DOMAIN}/admin/users/${encodeURIComponent(userId)}`;
+
+export const putAdminUserUpdateRequest = async (
+  userId: string,
+  requestBody: UpdateUserRequestDto,
+  accessToken: string
+): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.put(
+      PUT_ADMIN_USER_UPDATE(userId),
+      requestBody,
+      authorization(accessToken) // <-- headers config
+    );
+    return response.data as UpdateUserResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};

@@ -1,10 +1,10 @@
-export default interface SignUpRequestDto {
+export default interface UpdateUserRequestDto {
 
     userId: string;
-    userPassword: string;
     userName: string;
     memo: string;
     phone: string;
     auth: string;
+    smsYn: string;
     email: string;
 }
