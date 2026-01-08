@@ -1,11 +1,13 @@
 // src/components/organisms/PlantTable.tsx
 import React from "react";
+import type { Plant } from "../../types/interface/plant.interface";
 
 interface Props {
-  plants: any[];
+  plants: Plant[];
+  onClickDetail: (plant: Plant) => void;
 }
 
-export const PlantTable: React.FC<Props> = ({ plants }) => {
+export const PlantTable: React.FC<Props> = ({ plants, onClickDetail }) => {
   return (
     <table className="border-collapse w-full text-sm">
       <thead className="bg-slate-100">
@@ -14,7 +16,7 @@ export const PlantTable: React.FC<Props> = ({ plants }) => {
           <th className="border px-2 py-1">발전소명</th>
           <th className="border px-2 py-1">접속 URL</th>
           <th className="border px-2 py-1">발전용량(kW)</th>
-          <th className="border px-2 py-1">발전량(월)</th>
+          <th className="border px-2 py-1">발전단가(원)</th>
           <th className="border px-2 py-1">주소</th>
           <th className="border px-2 py-1">위도</th>
           <th className="border px-2 py-1">경도</th>
@@ -36,7 +38,7 @@ export const PlantTable: React.FC<Props> = ({ plants }) => {
             </td>
             <td className="border px-2 py-1 text-center">{p.connectUrl}</td>
             <td className="border px-2 py-1 text-center">{p.capacityKw}</td>
-            <td className="border px-2 py-1 text-center">{p.monthlyGen}</td>
+            <td className="border px-2 py-1 text-center">{p.plantPrice}</td>
             <td className="border px-2 py-1">{p.address}</td>
             <td className="border px-2 py-1 text-center">{p.lat}</td>
             <td className="border px-2 py-1 text-center">{p.lng}</td>
@@ -46,7 +48,12 @@ export const PlantTable: React.FC<Props> = ({ plants }) => {
             <td className="border px-2 py-1 text-center">{p.accessIpYn}</td>
             <td className="border px-2 py-1 text-center">{p.createdAt}</td>
             <td className="border px-2 py-1 text-center">
-              <button className="border px-2 py-1 rounded">상세</button>
+              <button
+                className="border px-2 py-1 rounded"
+                onClick={() => onClickDetail(p)}
+              >
+                상세
+              </button>
             </td>
           </tr>
         ))}

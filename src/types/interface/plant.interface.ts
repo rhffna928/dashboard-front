@@ -1,13 +1,14 @@
-// src/types/plant.ts
+// src/types/plant.interface.ts
 export interface Plant {
   id: number;
   name: string;
   connectUrl: string;
-  capacityKw: number;
+  capacityKw: string;
   monthlyGen: number;
+  plantPrice: string;
   address: string;
-  lat: number;
-  lng: number;
+  lat: string;
+  lng: string;
   activeYn: "Y" | "N";
   meterYn: "Y" | "N";
   sensorYn: "Y" | "N";
