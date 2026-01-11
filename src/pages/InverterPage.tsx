@@ -1,34 +1,23 @@
-import React from "react";
 import { MainLayout } from "../templates/MainLayout";
-import { PageHeaderMetrics } from '../components/organisms/PageHeader';
-import InverterPowerChart from "../components/organisms/InverterPowerChart";
-import type { InverterPowerPoint } from "../components/organisms/InverterPowerChart";
+import { InverterTable } from "../components/organisms/InverterTable";
+import { InverterChart } from "../components/organisms/InverterChart";
 
-const mockData: InverterPowerPoint[] = [
-  { timestamp: "2025-12-26T05:00:00+09:00", powerKw: 0.0 },
-  { timestamp: "2025-12-26T06:00:00+09:00", powerKw: 0.0 },
-  { timestamp: "2025-12-26T07:00:00+09:00", powerKw: 0.3 },
-  { timestamp: "2025-12-26T08:00:00+09:00", powerKw: 0.8 },
-  { timestamp: "2025-12-26T09:00:00+09:00", powerKw: 1.7 },
-  { timestamp: "2025-12-26T10:00:00+09:00", powerKw: 1.6 },
-  { timestamp: "2025-12-26T11:00:00+09:00", powerKw: 1.6 },
-  { timestamp: "2025-12-26T12:00:00+09:00", powerKw: 1.1 },
-  { timestamp: "2025-12-26T13:00:00+09:00", powerKw: 0.6 },
-  { timestamp: "2025-12-26T14:00:00+09:00", powerKw: 0.6 },
-  { timestamp: "2025-12-26T15:00:00+09:00", powerKw: 0.4 },
-  { timestamp: "2025-12-26T16:00:00+09:00", powerKw: 0.2 },
-];
-
-export const InverterPage: React.FC = () => {
+export const InverterPage = () => {
   return (
     <MainLayout activeMenu="/inverter">
       <div className="space-y-6">
-        <PageHeaderMetrics pageTitle="인버터" pageSubtitle="Inverter" />
+        
+        {/* 타이틀 영역 */}
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-6 rounded">
+          <h1 className="text-2xl font-bold">인버터 | Inverter</h1>
+        </div>
 
-        <InverterPowerChart
-          title="인버터 전력 그래프"
-          data={mockData}
-        />
+        {/* 테이블 */}
+        <InverterTable />
+
+        {/* 그래프 */}
+        <InverterChart />
+
       </div>
     </MainLayout>
   );
