@@ -123,7 +123,7 @@ export const getInverterListRequest = async (
   accessToken: string
 ): Promise<UpdateUserResponseDto | ResponseDto | null> => {
   try {
-    const response = await axios.put(GET_INVERTER_LIST(),authorization(accessToken) // <-- headers config
+    const response = await axios.get(GET_INVERTER_LIST(),authorization(accessToken) // <-- headers config
     );
     return response.data as UpdateUserResponseDto;
   } catch (error: any) {
@@ -159,7 +159,7 @@ export const deleteInverterRequest = async (
   accessToken: string
 ): Promise<UpdateUserResponseDto | ResponseDto | null> => {
   try {
-    const response = await axios.put(
+    const response = await axios.delete(
       DELETE_INVERTER(id),
       authorization(accessToken) // <-- headers config
     );
