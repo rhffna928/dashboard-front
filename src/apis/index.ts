@@ -116,3 +116,56 @@ export const putAdminUserUpdateRequest = async (
     return error.response.data as ResponseDto;
   }
 };
+
+const GET_INVERTER_LIST = () => `${API_DOMAIN}/invt_list`;
+
+export const getInverterListRequest = async (
+  accessToken: string
+): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.put(GET_INVERTER_LIST(),authorization(accessToken) // <-- headers config
+    );
+    return response.data as UpdateUserResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const PUT_UPDATE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list/users/${encodeURIComponent(id)}`;
+
+export const putUpdateInverterRequest = async (
+  id: number,
+  requestBody: UpdateUserRequestDto,
+  accessToken: string
+): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.put(
+      PUT_UPDATE_INVERTER(id),
+      requestBody,
+      authorization(accessToken) // <-- headers config
+    );
+    return response.data as UpdateUserResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const DELETE_INVERTER = (id: number) => `${API_DOMAIN}/admin/users/${encodeURIComponent(id)}`;
+
+export const deleteInverterRequest = async (
+  id: number,
+  accessToken: string
+): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.put(
+      DELETE_INVERTER(id),
+      authorization(accessToken) // <-- headers config
+    );
+    return response.data as UpdateUserResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
