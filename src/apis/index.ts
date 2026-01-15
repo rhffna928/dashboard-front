@@ -7,6 +7,9 @@ import type { GetAdminUserListResponseDto } from './response/admin';
 import type {} from './response/user';
 import type UpdateUserRequestDto from './request/admin/update-user.request.dto';
 import type { UpdateUserResponseDto } from './response/admin';
+import type { CreateInverterRequestDto, UpdateInverterRequestDto } from './request/inverter_list';
+import type { DeleteUserResponseDto } from './request/admin';
+import type { CreateInverterResponseDto, DeleteInverterResponseDto, GetInverterResponseDto, UpdateInverterResponseDto } from './response/inverter_list';
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -81,18 +84,18 @@ export const getAdminUsersRequest = async(accessToken: string) => {
         });
     return result;
 }
-const PUT_ADMIN_USER_DELETE = (userId: string) => `${API_DOMAIN}/admin/users/${encodeURIComponent(userId)}`;
+const DELETE_ADMIN_USER = (userId: string) => `${API_DOMAIN}/admin/users/${encodeURIComponent(userId)}`;
 
 export const adminUserDeleteRequest = async (
   userId: string,
   accessToken: string
-): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+): Promise<DeleteUserResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.delete(
-      PUT_ADMIN_USER_DELETE(userId),
+      DELETE_ADMIN_USER(userId),
       authorization(accessToken) // <-- headers config
     );
-    return response.data as UpdateUserResponseDto;
+    return response.data as DeleteUserResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
@@ -109,7 +112,7 @@ export const putAdminUserUpdateRequest = async (
     const response = await axios.put(
       PUT_ADMIN_USER_UPDATE(userId),
       requestBody,
-      authorization(accessToken) // <-- headers config
+      authorization(accessToken)
     );
     return response.data as UpdateUserResponseDto;
   } catch (error: any) {
@@ -122,49 +125,71 @@ const GET_INVERTER_LIST = () => `${API_DOMAIN}/invt_list`;
 
 export const getInverterListRequest = async (
   accessToken: string
-): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+): Promise<GetInverterResponseDto | ResponseDto | null> => {
   try {
-    const response = await axios.get(GET_INVERTER_LIST(),authorization(accessToken) // <-- headers config
+    const response = await axios.get(
+      GET_INVERTER_LIST()
+      ,authorization(accessToken) // <-- headers config
     );
-    return response.data as UpdateUserResponseDto;
+    return response.data as GetInverterResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
 
-const PUT_UPDATE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list/users/${encodeURIComponent(id)}`;
+const CREATE_INVERTER_LIST = () => `${API_DOMAIN}/invt_list/create`;
+
+
+export const createInverterListRequest = async (
+  requestBody: CreateInverterRequestDto,
+  accessToken: string
+): Promise<CreateInverterResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.post(
+      CREATE_INVERTER_LIST()
+      ,requestBody
+      ,authorization(accessToken)
+    );
+    return response.data as CreateInverterResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const PUT_UPDATE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list/${encodeURIComponent(id)}`;
 
 export const putUpdateInverterRequest = async (
   id: number,
-  requestBody: UpdateUserRequestDto,
+  requestBody: UpdateInverterRequestDto,
   accessToken: string
-): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+): Promise<UpdateInverterResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.put(
       PUT_UPDATE_INVERTER(id),
       requestBody,
-      authorization(accessToken) // <-- headers config
+      authorization(accessToken) 
     );
-    return response.data as UpdateUserResponseDto;
+    return response.data as UpdateInverterResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
 
-const DELETE_INVERTER = (id: number) => `${API_DOMAIN}/admin/users/${encodeURIComponent(id)}`;
+const DELETE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list/${encodeURIComponent(id)}`;
 
 export const deleteInverterRequest = async (
   id: number,
   accessToken: string
-): Promise<UpdateUserResponseDto | ResponseDto | null> => {
+): Promise<DeleteInverterResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.delete(
       DELETE_INVERTER(id),
-      authorization(accessToken) // <-- headers config
+      authorization(accessToken) 
     );
-    return response.data as UpdateUserResponseDto;
+    return response.data as DeleteInverterResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;

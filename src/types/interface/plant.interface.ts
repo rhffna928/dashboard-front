@@ -9,6 +9,7 @@ export interface Plant {
   address: string;
   lat: string;
   lng: string;
+  invCount: number;
   activeYn: "Y" | "N";
   meterYn: "Y" | "N";
   sensorYn: "Y" | "N";
