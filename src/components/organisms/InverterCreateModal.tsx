@@ -4,7 +4,7 @@ import { Button } from "../atoms/Button";
 import type { CreateInverterRequestDto } from "../../apis/request/inverter_list";
 import { fetchPlants } from "../../apis/plant/plant.api";
 
-// ✅ fetchPlants 반환 타입으로 plants 타입 자동 추론
+//  fetchPlants 반환 타입으로 plants 타입 자동 추론
 type Plant = Awaited<ReturnType<typeof fetchPlants>>[number];
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
   onCreate: (body: CreateInverterRequestDto, token: string) => Promise<any>;
 };
 
-// ✅ Row를 컴포넌트 밖으로 빼고 memo
+//  Row를 컴포넌트 밖으로 빼고 memo
 const Row = React.memo(function Row(props: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[120px_1fr] border-b last:border-b-0">
@@ -59,7 +59,7 @@ export const InverterCreateModal: React.FC<Props> = ({
     mccbStatus: 0,
   });
 
-  // ✅ 입력 핸들러 고정(불필요 리렌더 완화)
+  //  입력 핸들러 고정(불필요 리렌더 완화)
   const set = React.useCallback(
     <K extends keyof CreateInverterRequestDto>(key: K, value: CreateInverterRequestDto[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
@@ -67,7 +67,7 @@ export const InverterCreateModal: React.FC<Props> = ({
     []
   );
 
-  // ✅ select 옵션 memo (타이핑할 때 options 재생성 방지)
+  //  select 옵션 memo (타이핑할 때 options 재생성 방지)
   const plantOptions = React.useMemo(
     () =>
       plants.map((p) => (
@@ -80,7 +80,7 @@ export const InverterCreateModal: React.FC<Props> = ({
   );
 
 
-  // ✅ unit_id 변경 시 plantId/groupId 동결
+  //  unit_id 변경 시 plantId/groupId 동결
   const onUnitChange = React.useCallback((unitId: number) => {
     setForm((prev) => ({
       ...prev,
@@ -90,11 +90,18 @@ export const InverterCreateModal: React.FC<Props> = ({
     }));
   }, []);
 
-  // ✅ 모달 오픈 시 기본값 세팅
+
+  //  모달 오픈 시 기본값 세팅
   React.useEffect(() => {
     if (!open) return;
     setError(null);
 
+    // esc 닫기
+    const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    
     if (plants.length > 0) {
       const p0 = plants[0] as any;
       const unit = (p0.plantId ?? p0.unitId) as number;
@@ -104,8 +111,8 @@ export const InverterCreateModal: React.FC<Props> = ({
         plantId: unit,
         groupId: unit,
       }));
-    }
-  }, [open, plants]);
+    }  return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose, plants]);
 
   const submit = React.useCallback(async () => {
     setSaving(true);
@@ -238,17 +245,18 @@ export const InverterCreateModal: React.FC<Props> = ({
             </Row>
           </div>
 
-          <div className="flex justify-center gap-2 mt-5">
+          <div className="flex justify-end gap-2 mt-4">
             <Button
-              primary
+              variant="blue"
               onClick={submit}
-              className="px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm"
+              className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
             >
               {saving ? "저장 중..." : "저장"}
             </Button>
             <Button
+              variant="dark"
               onClick={onClose}
-              className="px-6 py-2 rounded bg-slate-600 text-white hover:bg-slate-700 text-sm"
+              className="border px-4 py-2 rounded disabled:opacity-60"
             >
               취소
             </Button>

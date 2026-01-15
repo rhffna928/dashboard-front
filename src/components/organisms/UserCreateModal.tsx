@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { signUpRequest } from "../../apis";
+import { Button } from "../atoms/Button";
 
 type ResponseDto = { code: string; message: string };
 
@@ -87,6 +88,7 @@ export const UserCreateModal: React.FC<Props> = ({ open, accessToken, onClose, o
 
   useEffect(() => {
     if (!open) return;
+
     setForm(makeEmpty());
     setPw2("");
     setSubmitting(false);
@@ -96,7 +98,14 @@ export const UserCreateModal: React.FC<Props> = ({ open, accessToken, onClose, o
     setEmailLocal("");
     setEmailDomainMode("naver.com");
     setEmailCustomDomain("");
-  }, [open]);
+
+    // esc 닫기
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
 
   const setField = useCallback(<K extends keyof CreateUserRequestDto>(key: K, value: CreateUserRequestDto[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -340,21 +349,24 @@ export const UserCreateModal: React.FC<Props> = ({ open, accessToken, onClose, o
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
-          <button
+          <Button
+            variant="blue"
             className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
             onClick={handleSave}
             disabled={submitting}
           >
             저장
-          </button>
+          </Button>
 
-          <button
+          <Button
+            
+            variant="dark"
             className="border px-4 py-2 rounded disabled:opacity-60"
             onClick={handleCancel}
             disabled={submitting}
           >
             취소
-          </button>
+          </Button>
         </div>
       </div>
     </div>

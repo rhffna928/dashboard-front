@@ -102,7 +102,14 @@ export const UserDetailModal: React.FC<Props> = ({
     setEmailDomainMode("naver.com");
     setEmailCustomDomain("");
   }
-}, [open, user?.userId]);
+  // esc 닫기
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") onClose();
+  };
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
+
+}, [open,onClose, user?.userId]);
 
   const setField = useCallback(
     <K extends keyof AdminUserSummary>(key: K, value: AdminUserSummary[K]) => {

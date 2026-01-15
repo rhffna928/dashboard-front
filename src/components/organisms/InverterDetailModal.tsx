@@ -130,7 +130,14 @@ export const InverterDetailModal: React.FC<Props> = ({
       mccbId: Number(inverter.mccbId ?? 0),
       mccbStatus: Number(inverter.mccbStatus ?? 0),
     });
-  }, [open, inverter]);
+    // esc 닫기
+    const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+
+  }, [open,onClose, inverter]);
 
   const onUnitChange = React.useCallback((unitId: number) => {
     setForm((prev) => ({
