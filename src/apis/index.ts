@@ -198,15 +198,40 @@ export const deleteInverterRequest = async (
 };
 
 
-const GET_ALRAM_LIST = (userId: string) => `${API_DOMAIN}/alram/${encodeURIComponent(userId)}`;
+const GET_ALRAM_LIST = () => `${API_DOMAIN}/alram/list`;
 
 export const getAlramListRequest = async (
-  userId: string,
   accessToken: string
 ): Promise<GetAlramResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(
-      GET_ALRAM_LIST(userId)
+      GET_ALRAM_LIST(){
+      ...authorization(accessToken) // <-- headers config
+      ,params: {
+        plantId: params.plantId ?? undefined,
+        from: params.from,
+        to: params.to,
+        deviceType: params.deviceType ?? "ALL",
+        deviceId: params.deviceId ?? "ALL",
+        page: params.page ?? 0,
+        size: params.size ?? 20,
+      },
+    });
+    return response.data as GetAlramResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const GET_ALRAM_DEVICE_TYPE_LIST = () => `${API_DOMAIN}/alram/device-ids`;
+
+export const getAlramDeviceTypeListRequest = async (
+  accessToken: string
+): Promise<GetAlramResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_ALRAM_DEVICE_TYPE_LIST()
       ,authorization(accessToken) // <-- headers config
     );
     return response.data as GetAlramResponseDto;
