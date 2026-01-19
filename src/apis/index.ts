@@ -10,6 +10,7 @@ import type { UpdateUserResponseDto } from './response/admin';
 import type { CreateInverterRequestDto, UpdateInverterRequestDto } from './request/inverter_list';
 import type { DeleteUserResponseDto } from './request/admin';
 import type { CreateInverterResponseDto, DeleteInverterResponseDto, GetInverterResponseDto, UpdateInverterResponseDto } from './response/inverter_list';
+import type { GetAlramResponseDto } from './response/alram';
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -190,6 +191,25 @@ export const deleteInverterRequest = async (
       authorization(accessToken) 
     );
     return response.data as DeleteInverterResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+
+const GET_ALRAM_LIST = (userId: string) => `${API_DOMAIN}/alram/${encodeURIComponent(userId)}`;
+
+export const getAlramListRequest = async (
+  userId: string,
+  accessToken: string
+): Promise<GetAlramResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_ALRAM_LIST(userId)
+      ,authorization(accessToken) // <-- headers config
+    );
+    return response.data as GetAlramResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
