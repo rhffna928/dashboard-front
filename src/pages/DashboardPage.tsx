@@ -14,7 +14,7 @@ interface MetricCardProps {
     pageSubtitle: string;
 }
 
-export const DashboardPage: React.FC<MetricCardProps> = ({pageTitle, pageSubtitle}) => {
+export const DashboardPage: React.FC<MetricCardProps> = ({}) => {
     return (
         
         <MainLayout activeMenu="dashboard">

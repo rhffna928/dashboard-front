@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { SignInRequestDto, SignUpRequestDto } from './request/auth';
+import type { SignInRequestDto, SignUpRequestDto } from './request/AUTH';
 import type { SignUpResponseDto, SignInResponseDto } from './response/auth';
 import type { ResponseDto } from './response';
 import type { GetSignInUserResponseDto } from './response/user';
@@ -229,16 +229,28 @@ export const getAlramListRequest = async (
 const GET_ALRAM_DEVICE_TYPE_LIST = () => `${API_DOMAIN}/alram/device-ids`;
 
 export const getAlramDeviceTypeListRequest = async (
-  accessToken: string
+  accessToken: string,
+  params: GetAlarmDeviceIdOptionsParams
 ): Promise<GetAlramResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(
-      GET_ALRAM_DEVICE_TYPE_LIST()
-      ,authorization(accessToken) // <-- headers config
-    );
+      GET_ALRAM_DEVICE_TYPE_LIST(),{
+        ...authorization(accessToken) // <-- headers config
+        ,params: {
+          plantId: params.plantId ?? undefined,
+          from: params.from,
+          to: params.to,
+          deviceType: params.deviceType ?? "ALL",
+        },
+      });
     return response.data as GetAlramResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
+
+
+
+
+

@@ -4,7 +4,7 @@ export const INVT_PATH = () => '/inverter';
 export const TRND_PATH = () => '/trend';
 export const REPT_PATH = () => '/report';
 export const HIST_PATH = () => '/history';
-export const ALERT_PATH = () => '/alert';
+export const ALARM_PATH = () => '/alert';
 export const PTMNG_PATH = () => '/plant-management';
 export const DMNG_PATH = () => '/device-management';
 export const UMNG_PATH = () => '/user-management';
