@@ -10,7 +10,8 @@ import type { UpdateUserResponseDto } from './response/admin';
 import type { CreateInverterRequestDto, UpdateInverterRequestDto } from './request/inverter_list';
 import type { DeleteUserResponseDto } from './request/admin';
 import type { CreateInverterResponseDto, DeleteInverterResponseDto, GetInverterResponseDto, UpdateInverterResponseDto } from './response/inverter_list';
-import type { GetAlramResponseDto } from './response/alram';
+import type { GetAlramResponseDto } from './response/alarm';
+import type { GetAlarmListParams, GetAlarmDeviceIdOptionsParams } from './request/alarm';
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -201,11 +202,12 @@ export const deleteInverterRequest = async (
 const GET_ALRAM_LIST = () => `${API_DOMAIN}/alram/list`;
 
 export const getAlramListRequest = async (
-  accessToken: string
+  accessToken: string,
+  params: GetAlarmListParams
 ): Promise<GetAlramResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(
-      GET_ALRAM_LIST(){
+      GET_ALRAM_LIST(),{
       ...authorization(accessToken) // <-- headers config
       ,params: {
         plantId: params.plantId ?? undefined,
