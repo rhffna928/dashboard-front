@@ -11,7 +11,7 @@ const authHeader = (accessToken: string) => {
 export const fetchInvertersByPlant = (accessToken: string, plantId: number) => {
   if (!accessToken) throw new Error("로그인이 필요합니다.");
   return axios
-    .get<Inverter[]>(`/api/inverters/plant/${plantId}`, {
+    .get<Inverter[]>(`/api/v1/inverters/plant/${plantId}`, {
       headers: authHeader(accessToken),
     })
     .then((res) => res.data);
@@ -20,7 +20,7 @@ export const fetchInvertersByPlant = (accessToken: string, plantId: number) => {
 export const fetchTodaySeries = (accessToken: string, plantId: number, invId: number) => {
   if (!accessToken) throw new Error("로그인이 필요합니다.");
   return axios
-    .get<Inverter[]>(`/api/inverters/plant/${plantId}/inv/${invId}/today`, {
+    .get<Inverter[]>(`/api/v1/inverters/plant/${plantId}/inv/${invId}/today`, {
       headers: authHeader(accessToken),
     })
     .then((res) => res.data);
@@ -29,7 +29,7 @@ export const fetchTodaySeries = (accessToken: string, plantId: number, invId: nu
 export const fetchRecentSeries = (accessToken: string, plantId: number, invId: number, limit = 200) => {
   if (!accessToken) throw new Error("로그인이 필요합니다.");
   return axios
-    .get(`/api/inverters/plant/${plantId}/inv/${invId}/recent?limit=${limit}`, {
+    .get(`/api/v1/inverters/plant/${plantId}/inv/${invId}/recent?limit=${limit}`, {
       headers: authHeader(accessToken),
     })
     .then((res) => res.data);
