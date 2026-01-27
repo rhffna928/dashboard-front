@@ -376,7 +376,7 @@ export const AlarmPage: React.FC = () => {
                   <th className="text-left font-medium px-4 py-3 w-[120px]">설비번호</th>
                   <th className="text-left font-medium px-4 py-3 w-[180px]">발생일시</th>
                   <th className="text-left font-medium px-4 py-3 w-[120px]">알람구분</th>
-                  <th className="text-left font-medium px-4 py-3">알람내역</th>
+                  <th className="text-left font-medium px-4 py-3  w-[120px]">알람내역</th>
                 </tr>
               </thead>
 
