@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { SignInRequestDto, SignUpRequestDto } from './request/AUTH';
+import type { SignInRequestDto, SignUpRequestDto } from './request/auth';
 import type { SignUpResponseDto, SignInResponseDto } from './response/auth';
 import type { ResponseDto } from './response';
 import type { GetSignInUserResponseDto } from './response/user';
@@ -12,6 +12,8 @@ import type { DeleteUserResponseDto } from './request/admin';
 import type { CreateInverterResponseDto, DeleteInverterResponseDto, GetInverterResponseDto, UpdateInverterResponseDto } from './response/inverter_list';
 import type { GetAlarmListResponseDto, GetAlarmDeviceTypeResponseDto } from './response/alarm';
 import type { GetAlarmListParams, GetAlarmDeviceIdOptionsParams } from './request/alarm';
+import type {GetInverterHistoryResponseDto} from "./response/inverter";
+import type {GetInverterHistoryRequestDto} from "./request/inverter";
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -250,7 +252,30 @@ export const getAlramDeviceTypeListRequest = async (
   }
 };
 
+const GET_INVERTER_HISTORY_LIST = () => `${API_DOMAIN}/inverters`;
 
-
-
-
+export const getInverterHistoryRequest = async (
+  accessToken: string,
+  params: GetInverterHistoryRequestDto
+): Promise<GetInverterHistoryResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(GET_INVERTER_HISTORY_LIST(), {
+      ...authorization(accessToken),
+      params: {
+        plantId: params.plantId ?? undefined,
+        invId: params.invId ?? undefined,
+        from: params.from,
+        to: params.to,
+        bucketSec: params.bucketSec ?? 60,
+        page: params.page ?? 0,
+        size: params.size ?? 20,
+      },
+      // 헤더를 여기서 넣거나(아래), axios interceptor로 전역 주입해도 됨
+      // headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data as GetInverterHistoryResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
