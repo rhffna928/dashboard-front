@@ -9,11 +9,13 @@ import type UpdateUserRequestDto from './request/admin/update-user.request.dto';
 import type { UpdateUserResponseDto } from './response/admin';
 import type { CreateInverterRequestDto, UpdateInverterRequestDto } from './request/inverter_list';
 import type { DeleteUserResponseDto } from './request/admin';
-import type { CreateInverterResponseDto, DeleteInverterResponseDto, GetInverterResponseDto, UpdateInverterResponseDto } from './response/inverter_list';
+import type { CreateInverterResponseDto, DeleteInverterResponseDto,
+   GetInverterResponseDto, UpdateInverterResponseDto, GetUserInverterList2ResponseDto
+   } from './response/inverter_list';
 import type { GetAlarmListResponseDto, GetAlarmDeviceTypeResponseDto } from './response/alarm';
 import type { GetAlarmListParams, GetAlarmDeviceIdOptionsParams } from './request/alarm';
-import type {GetInverterHistoryResponseDto} from "./response/inverter";
-import type {GetInverterHistoryRequestDto} from "./request/inverter";
+import type {GetInverterHistoryResponseDto, GetInverterLastResponseDto} from "./response/inverter";
+import type {GetInverterHistoryRequestDto,GetInverterLastRequestDto} from "./request/inverter";
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -125,7 +127,7 @@ export const putAdminUserUpdateRequest = async (
   }
 };
 
-const GET_INVERTER_LIST = () => `${API_DOMAIN}/invt_list`;
+const GET_INVERTER_LIST = () => `${API_DOMAIN}/invt_list2`;
 
 export const getInverterListRequest = async (
   accessToken: string
@@ -142,7 +144,7 @@ export const getInverterListRequest = async (
   }
 };
 
-const CREATE_INVERTER_LIST = () => `${API_DOMAIN}/invt_list/create`;
+const CREATE_INVERTER_LIST = () => `${API_DOMAIN}/invt_list2/create`;
 
 
 export const createInverterListRequest = async (
@@ -162,7 +164,7 @@ export const createInverterListRequest = async (
   }
 };
 
-const PUT_UPDATE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list/${encodeURIComponent(id)}`;
+const PUT_UPDATE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list2/${encodeURIComponent(id)}`;
 
 export const putUpdateInverterRequest = async (
   id: number,
@@ -182,7 +184,7 @@ export const putUpdateInverterRequest = async (
   }
 };
 
-const DELETE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list/${encodeURIComponent(id)}`;
+const DELETE_INVERTER = (id: number) => `${API_DOMAIN}/invt_list2/${encodeURIComponent(id)}`;
 
 export const deleteInverterRequest = async (
   id: number,
@@ -274,6 +276,53 @@ export const getInverterHistoryRequest = async (
       // headers: { Authorization: `Bearer ${token}` },
     });
     return response.data as GetInverterHistoryResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+
+const GET_USER_PLANT_LIST2 = () => `${API_DOMAIN}/plants/usr`;
+
+export const getUserPlantList2Request = async (
+  accessToken: string
+): Promise<GetAlarmListResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_USER_PLANT_LIST2(),authorization(accessToken));
+    return response.data as GetAlarmListResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const GET_USER_INVERTER_LIST2 = () => `${API_DOMAIN}/invt_list2/usr`;
+
+export const getUserInverterList2Request = async (
+  accessToken: string
+): Promise<GetUserInverterList2ResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_USER_INVERTER_LIST2(),authorization(accessToken));
+    return response.data as GetUserInverterList2ResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const GET_USER_INVERTER_LAST = () => `${API_DOMAIN}/inverters/usr`;
+
+export const getUserInverterLastRequest = async (
+  accessToken: string
+): Promise<GetInverterLastResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_USER_INVERTER_LAST(),authorization(accessToken));
+
+    return response.data as GetInverterLastResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
