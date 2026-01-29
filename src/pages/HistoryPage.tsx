@@ -1,4 +1,4 @@
-// src/pages/InverterHistoryPage.tsx
+// src/pages/HistoryPage.tsx
 import React from "react";
 import { useCookies } from "react-cookie";
 
@@ -9,7 +9,7 @@ import { Button } from "../components/atoms/Button";
 import { getInverterHistoryRequest } from "../apis";
 import type { GetInverterHistoryRequestDto } from "../apis/request/inverter";
 
-// 서버가 inverters에 담아주는 row (느슨하게 최소만)
+// ✅ 서버가 inverters에 담아주는 row 기준
 type InverterHistoryRow = {
   id: number;
   plantId: number;
@@ -39,6 +39,13 @@ type InverterHistoryRow = {
   regdate: string;
 };
 
+type ResponseDto = { code: string; message?: string };
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+// YYYY-MM-DD
 function toDateInputValue(d: Date) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -46,63 +53,87 @@ function toDateInputValue(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
+// "2026-01-27" -> "2026-01-27"
+function toDateTimeStart(dateStr: string) {
+  return `${dateStr}`;
 }
 
-// datetime-local 기본값: YYYY-MM-DDTHH:mm
-function toDateTimeLocalValue(d: Date) {
+// to는 < 조건이므로 다음날 00:00:00로 보내는 게 안전
+function toDateTimeExclusiveEnd(dateStr: string) {
+  const d = new Date(`${dateStr}`);
+  d.setDate(d.getDate() + 1);
+
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-// 표시용
 function formatDateTime(v: string) {
   if (!v) return "-";
   return v.replace("T", " ");
 }
 
-// SUCCESS/SU 둘 다 허용
 function isSuccessCode(code: any) {
   return code === "SU" || code === "SUCCESS";
 }
 
-// 응답 normalize: 서버가 {inverters,totalElements,totalPages}로 준다고 했으니 그거 우선
-function normalizeHistory(res: any, fallbackPage: number, fallbackSize: number) {
-  // 1) 니 서버 형태: { code, message, inverters, totalElements, totalPages }
+function normalizeHistory(
+  res: any,
+  fallbackPage: number,
+  fallbackSize: number
+): {
+  items: InverterHistoryRow[];
+  totalElements: number;
+  totalPages: number;
+  pageNumber: number;
+  size: number;
+} {
   if (Array.isArray(res?.inverters)) {
     return {
       items: res.inverters as InverterHistoryRow[],
       totalElements: Number(res.totalElements ?? res.inverters.length ?? 0),
       totalPages: Number(res.totalPages ?? 1),
-      pageNumber: fallbackPage,
-      size: fallbackSize,
+      pageNumber: Number(res.page ?? fallbackPage), // 서버가 page를 따로 안주면 fallback
+      size: Number(res.size ?? fallbackSize),
     };
   }
+  return { items: [], totalElements: 0, totalPages: 1, pageNumber: fallbackPage, size: fallbackSize };
+}
 
-  // 2) 혹시 Spring Page 감싼 형태도 대비(나중에 바뀔 수 있으니)
-  const data = res?.data;
-  if (data?.content && Array.isArray(data.content)) {
-    return {
-      items: data.content as InverterHistoryRow[],
-      totalElements: Number(data.totalElements ?? 0),
-      totalPages: Number(data.totalPages ?? 1),
-      pageNumber: Number(data.number ?? fallbackPage),
-      size: Number(data.size ?? fallbackSize),
-    };
-  }
+// CSV 다운로드(엑셀 저장)
+function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
+  if (!rows || rows.length === 0) return;
 
-  return {
-    items: [],
-    totalElements: 0,
-    totalPages: 1,
-    pageNumber: fallbackPage,
-    size: fallbackSize,
+  const headers = Object.keys(rows[0]);
+  const escape = (v: any) => {
+    const s = String(v ?? "");
+    const escaped = s.replaceAll('"', '""');
+    return `"${escaped}"`;
   };
+
+  const lines = [
+    headers.join(","),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+  ];
+
+  const csv = "\uFEFF" + lines.join("\n"); // BOM(한글 깨짐 방지)
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function arraysEqualNumber(a: number[], b: number[]) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
 const PAGE_SIZE = 20;
@@ -111,31 +142,30 @@ export const HistoryPage: React.FC = () => {
   const [cookies] = useCookies(["accessToken"]);
   const token: string = cookies.accessToken;
 
-  // ✅ 필터 기본값 (최근 24시간)
+  // ✅ UI: 날짜(스샷처럼)
   const today = React.useMemo(() => new Date(), []);
-
-  const [from, setFrom] = React.useState(() => {
+  const [fromDate, setFromDate] = React.useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 7);
+    d.setDate(d.getDate() - 7); // 기본 7일
     return toDateInputValue(d);
   });
-  const [to, setTo] = React.useState(() => toDateInputValue(today));
+  const [toDate, setToDate] = React.useState(() => toDateInputValue(today));
 
+  // ✅ 설비구분: 지금은 INV 고정 (UI용)
+  const deviceType: "INV" = "INV";
 
+  // ✅ 설비번호: ALL 또는 특정 invId (드롭다운)
+  const [invId, setInvId] = React.useState<"ALL" | number>("ALL");
+  const [invIdOptions, setInvIdOptions] = React.useState<number[]>([]);
 
-  const [plantId, setPlantId] = React.useState<number | "">("");
-  const [invId, setInvId] = React.useState<number | "">("");
-
-  const bucketOptions = React.useMemo(
-    () => [
-      { value: 60, label: "60초" },
-      { value: 300, label: "5분" },
-      { value: 900, label: "15분" },
-      { value: 1800, label: "30분" },
-      { value: 3600, label: "1시간" },
-    ],
-    []
-  );
+  // ✅ 시간간격(분 UI → bucketSec)
+  const intervalOptions = [
+    { label: "1", min: 60 },
+    { label: "5", min: 300 },
+    { label: "15", min: 900 },
+    { label: "30", min: 1800 },
+    { label: "60", min: 3600 },
+  ];
   const [bucketSec, setBucketSec] = React.useState<number>(60);
 
   // ✅ 목록/상태
@@ -150,7 +180,6 @@ export const HistoryPage: React.FC = () => {
 
   const fetchHistory = React.useCallback(
     async (nextPage?: number) => {
-      // 토큰 없으면 화면에 바로 표시(빈 화면 방지)
       if (!token) {
         setError("accessToken이 없습니다. 로그인 후 다시 시도하세요.");
         setRows([]);
@@ -164,15 +193,10 @@ export const HistoryPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // datetime-local 은 보통 seconds 없어서 붙여줌 (서버 LocalDateTime 파싱 안정화)
-      const fromVal = from.length === 16 ? `${from}:00` : from;
-      const toVal = to.length === 16 ? `${to}:00` : to;
-
       const params: GetInverterHistoryRequestDto = {
-        plantId: plantId === "" ? undefined : Number(plantId),
-        invId: invId === "" ? undefined : Number(invId),
-        from: fromVal,
-        to: toVal,
+        invId: invId === "ALL" ? undefined : invId,
+        from: toDateTimeStart(fromDate),
+        to: toDateTimeExclusiveEnd(toDate),
         bucketSec,
         page: p,
         size: PAGE_SIZE,
@@ -186,12 +210,12 @@ export const HistoryPage: React.FC = () => {
           setRows(norm.items);
           setTotalElements(norm.totalElements);
           setTotalPages(norm.totalPages);
-          setPage(norm.pageNumber);
+          setPage(p); // 서버가 page 안 주는 구조라 클라 기준으로 유지
         } else if (res) {
           setRows([]);
           setTotalElements(0);
           setTotalPages(1);
-          setError((res as any)?.message ?? "인버터 기록 조회 실패");
+          setError((res as any)?.message ?? "기록 조회 실패");
         } else {
           setRows([]);
           setTotalElements(0);
@@ -202,19 +226,37 @@ export const HistoryPage: React.FC = () => {
         setRows([]);
         setTotalElements(0);
         setTotalPages(1);
-        setError(e?.message ?? "인버터 기록 조회 실패");
+        setError(e?.message ?? "기록 조회 실패");
       } finally {
         setLoading(false);
       }
     },
-    [token, from, to, plantId, invId, bucketSec, page]
+    [token, fromDate, toDate, invId, bucketSec, page]
   );
 
-  // ✅ 최초 로드
+  // ✅ 최초 1회 로드
   React.useEffect(() => {
     fetchHistory(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ 핵심: "전체(ALL) 조회 결과"에서 invId 옵션을 누적 수집
+  // - invId가 ALL일 때만
+  // - rows 변경 시에만
+  // - 실제 옵션이 바뀔 때만 setState (무한 렌더/렉 방지)
+  React.useEffect(() => {
+    if (invId !== "ALL") return;
+    if (!rows || rows.length === 0) return;
+
+    const next = Array.from(new Set(rows.map((r) => Number(r.invId)))).sort((a, b) => a - b);
+
+    setInvIdOptions((prev) => {
+      // 누적(이전 + 이번 페이지)로 원하면 아래처럼:
+      const merged = Array.from(new Set([...prev, ...next])).sort((a, b) => a - b);
+      if (arraysEqualNumber(prev, merged)) return prev; // ✅ 변경 없으면 set 안 함
+      return merged;
+    });
+  }, [rows, invId]);
 
   const onClickView = () => {
     setPage(0);
@@ -231,10 +273,38 @@ export const HistoryPage: React.FC = () => {
     fetchHistory(next);
   };
 
+  const onClickExcel = () => {
+    if (!rows || rows.length === 0) return;
+
+    const csvRows = rows.map((r, idx) => ({
+      번호: idx + 1 + page * PAGE_SIZE,
+      설비구분: deviceType,
+      설비번호: `INV${String(r.invId).padStart(2, "0")}`,
+      기록시각: formatDateTime(r.regdate),
+      상태: r.invStatus,
+      알람: r.invFault ?? "",
+      전압_V: r.inVolt,
+      전류_A: r.inCurrent,
+      전력_kW: r.inPower,
+      RS전압_V: r.outVolt1,
+      ST전압_V: r.outVolt2,
+      TR전압_V: r.outVolt3,
+      R전류_A: r.outCurrent1,
+      S전류_A: r.outCurrent2,
+      T전류_A: r.outCurrent3,
+      출력전력_kW: r.outPower,
+      주파수_Hz: r.hz,
+      금일발전_kWh: r.todayGen,
+      누적발전_kWh: r.totalGen,
+    }));
+
+    downloadCsv(`History_${fromDate}_${toDate}.csv`, csvRows);
+  };
+
   return (
-    <MainLayout activeMenu="/inverter-history">
+    <MainLayout activeMenu="/history">
       <div className="space-y-6">
-        <PageHeaderMetrics pageTitle="인버터 기록" pageSubtitle="Inverter History" />
+        <PageHeaderMetrics pageTitle="기록" pageSubtitle="History" />
 
         {/* ✅ 필터 */}
         <section className="bg-white border rounded p-4">
@@ -244,63 +314,69 @@ export const HistoryPage: React.FC = () => {
               <input
                 type="date"
                 className="border rounded px-3 py-2 text-sm"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
               />
               <span className="text-slate-500">~</span>
               <input
                 type="date"
                 className="border rounded px-3 py-2 text-sm"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="text-sm text-slate-700">plantId</div>
-              <input
-                type="number"
-                className="border rounded px-3 py-2 text-sm w-[120px]"
-                value={plantId}
-                onChange={(e) => setPlantId(e.target.value ? Number(e.target.value) : "")}
-                placeholder="선택"
-              />
+              <div className="text-sm text-slate-700">시간간격</div>
+                <select
+                  className="border rounded px-3 py-2 text-sm w-[90px]"
+                  value={bucketSec}
+                  onChange={(e) => setBucketSec(Number(e.target.value))}
+                >
+                  {intervalOptions.map((op) => (
+                    <option key={op.min} value={op.min}>{op.label}</option>
+                  ))}
+                </select>
+                <span className="text-sm text-slate-600">분</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="text-sm text-slate-700">invId</div>
-              <input
-                type="number"
-                className="border rounded px-3 py-2 text-sm w-[120px]"
-                value={invId}
-                onChange={(e) => setInvId(e.target.value ? Number(e.target.value) : "")}
-                placeholder="선택"
-              />
+              <div className="text-sm text-slate-700">설비구분</div>
+              <select className="border rounded px-3 py-2 text-sm w-[120px]" value={deviceType}>
+                <option value="INV">인버터</option>
+              </select>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="text-sm text-slate-700">간격</div>
+              <div className="text-sm text-slate-700">설비번호</div>
               <select
-                className="border rounded px-3 py-2 text-sm w-[140px]"
-                value={bucketSec}
-                onChange={(e) => setBucketSec(Number(e.target.value))}
+                className="border rounded px-3 py-2 text-sm w-[180px]"
+                value={invId === "ALL" ? "ALL" : String(invId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setInvId(v === "ALL" ? "ALL" : Number(v));
+                }}
               >
-                {bucketOptions.map((op) => (
-                  <option key={op.value} value={op.value}>
-                    {op.label}
+                <option value="ALL">전체</option>
+                {invIdOptions.map((id) => (
+                  <option key={id} value={String(id)}>
+                    INV{String(id).padStart(2, "0")}
                   </option>
                 ))}
               </select>
+              {/* ✅ 옵션이 비어있으면: 먼저 "전체(ALL)"로 한번 조회(보기)해서 invId를 모으면 됨 */}
             </div>
 
             <div className="ml-auto flex items-center gap-2">
               <Button variant="dark" onClick={onClickView}>
                 보기
               </Button>
+              <Button variant="green" onClick={onClickExcel}>
+                엑셀 저장
+              </Button>
             </div>
           </div>
 
-          {/* 토큰/에러 표시: 빈 화면 방지 */}
           {!token && (
             <div className="mt-3 text-sm text-rose-600">
               accessToken이 없습니다. 로그인 상태를 확인하세요.
@@ -312,7 +388,10 @@ export const HistoryPage: React.FC = () => {
         {/* ✅ 테이블 */}
         <section className="bg-white border rounded p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-slate-900 font-semibold">인버터 기록 목록</div>
+            <div className="text-slate-900 font-semibold">
+              [{deviceType === "INV" ? "인버터" : deviceType}] -{" "}
+              {invId === "ALL" ? "전체" : `INV${String(invId).padStart(2, "0")}`}
+            </div>
             <div className="text-sm text-slate-500">
               총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
             </div>
@@ -323,31 +402,40 @@ export const HistoryPage: React.FC = () => {
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="text-left font-medium px-4 py-3 w-[80px]">번호</th>
-                  <th className="text-left font-medium px-4 py-3 w-[180px]">기록시각</th>
-                  <th className="text-left font-medium px-4 py-3 w-[90px]">plant</th>
-                  <th className="text-left font-medium px-4 py-3 w-[90px]">inv</th>
-                  <th className="text-left font-medium px-4 py-3 w-[110px]">상태</th>
-                  <th className="text-left font-medium px-4 py-3 w-[110px]">Fault</th>
-                  <th className="text-left font-medium px-4 py-3 w-[90px]">inV</th>
-                  <th className="text-left font-medium px-4 py-3 w-[90px]">inA</th>
-                  <th className="text-left font-medium px-4 py-3 w-[100px]">inP</th>
-                  <th className="text-left font-medium px-4 py-3 w-[100px]">outP</th>
-                  <th className="text-left font-medium px-4 py-3 w-[80px]">Hz</th>
-                  <th className="text-left font-medium px-4 py-3 w-[120px]">todayGen</th>
-                  <th className="text-left font-medium px-4 py-3 w-[120px]">totalGen</th>
+                  <th className="text-left font-medium px-4 py-3 w-[160px]">기록시각</th>
+                  <th className="text-left font-medium px-4 py-3 w-[90px]">상태</th>
+                  <th className="text-left font-medium px-4 py-3 w-[180px]">알람</th>
+
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">전압(V)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">전류(A)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">전력(kW)</th>
+
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">RS(V)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">ST(V)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">TR(V)</th>
+
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">R(A)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">S(A)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">T(A)</th>
+
+                  <th className="text-right font-medium px-4 py-3 w-[100px]">출력(kW)</th>
+                  <th className="text-right font-medium px-4 py-3 w-[90px]">주파수</th>
+
+                  <th className="text-right font-medium px-4 py-3 w-[120px]">금일발전</th>
+                  <th className="text-right font-medium px-4 py-3 w-[120px]">누적발전</th>
                 </tr>
               </thead>
 
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={17} className="px-4 py-10 text-center text-slate-400">
                       불러오는 중...
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={17} className="px-4 py-10 text-center text-slate-400">
                       조회 결과가 없습니다.
                     </td>
                   </tr>
@@ -356,17 +444,26 @@ export const HistoryPage: React.FC = () => {
                     <tr key={r.id} className={cn(idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
                       <td className="px-4 py-3 text-slate-900">{idx + 1 + page * PAGE_SIZE}</td>
                       <td className="px-4 py-3 text-slate-700">{formatDateTime(r.regdate)}</td>
-                      <td className="px-4 py-3 text-slate-900">{r.plantId}</td>
-                      <td className="px-4 py-3 text-slate-900">{r.invId}</td>
                       <td className="px-4 py-3 text-slate-900">{r.invStatus}</td>
                       <td className="px-4 py-3 text-slate-700">{r.invFault ?? "-"}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.inVolt}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.inCurrent}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.inPower}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.outPower}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.hz}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.todayGen}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.totalGen}</td>
+
+                      <td className="px-4 py-3 text-right">{r.inVolt}</td>
+                      <td className="px-4 py-3 text-right">{r.inCurrent}</td>
+                      <td className="px-4 py-3 text-right">{r.inPower}</td>
+
+                      <td className="px-4 py-3 text-right">{r.outVolt1}</td>
+                      <td className="px-4 py-3 text-right">{r.outVolt2}</td>
+                      <td className="px-4 py-3 text-right">{r.outVolt3}</td>
+
+                      <td className="px-4 py-3 text-right">{r.outCurrent1}</td>
+                      <td className="px-4 py-3 text-right">{r.outCurrent2}</td>
+                      <td className="px-4 py-3 text-right">{r.outCurrent3}</td>
+
+                      <td className="px-4 py-3 text-right">{r.outPower}</td>
+                      <td className="px-4 py-3 text-right">{r.hz}</td>
+
+                      <td className="px-4 py-3 text-right">{r.todayGen}</td>
+                      <td className="px-4 py-3 text-right">{r.totalGen}</td>
                     </tr>
                   ))
                 )}
@@ -375,26 +472,31 @@ export const HistoryPage: React.FC = () => {
           </div>
 
           {/* ✅ 페이징 */}
-          <div className="flex items-center justify-end mt-4 gap-2">
-            <button
-              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
-              onClick={goPrev}
-              disabled={page <= 0 || loading}
-              type="button"
-            >
-              이전
-            </button>
-            <button
-              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
-              onClick={goNext}
-              disabled={page >= totalPages - 1 || loading}
-              type="button"
-            >
-              다음
-            </button>
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-slate-500">
+              총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+                onClick={goPrev}
+                disabled={page <= 0 || loading}
+                type="button"
+              >
+                이전
+              </button>
+              <button
+                className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+                onClick={goNext}
+                disabled={page >= totalPages - 1 || loading}
+                type="button"
+              >
+                다음
+              </button>
+            </div>
           </div>
         </section>
       </div>
     </MainLayout>
   );
-};
+}

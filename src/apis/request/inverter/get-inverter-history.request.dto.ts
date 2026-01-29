@@ -1,5 +1,4 @@
 export interface GetInverterHistoryRequestDto {
-  plantId?: number;
   invId?: number;
   from: string;      // 예: "2026-01-27T00:00:00"
   to: string;        // 예: "2026-01-28T00:00:00"
