@@ -315,13 +315,17 @@ export const getUserInverterList2Request = async (
 
 const GET_USER_INVERTER_LAST = () => `${API_DOMAIN}/inverters/usr`;
 
-export const getUserInverterLastRequest = async (
-  accessToken: string
+export const getDashboardKpiRequest = async (
+  accessToken: string,
+  params: GetInverterLastRequestDto
 ): Promise<GetInverterLastResponseDto | ResponseDto | null> => {
   try {
-    const response = await axios.get(
-      GET_USER_INVERTER_LAST(),authorization(accessToken));
-
+    const response = await axios.get(GET_USER_INVERTER_LAST(), {
+        ...authorization(accessToken),
+        params: {
+         invId : params.invId ?? undefined
+        },
+      });
     return response.data as GetInverterLastResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
