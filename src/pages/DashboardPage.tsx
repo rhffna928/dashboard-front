@@ -6,16 +6,13 @@ import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 
 import { PlantOverviewCard } from "../components/organisms/PlantOverviewCard";
 import { InverterStatusTable } from "../components/organisms/InverterStatusTable";
-import { KpiStrip, } from "../components/organisms/KpiStrip";
+import { KpiStrip } from "../components/organisms/KpiStrip";
 import { DashboardTrends } from "../components/organisms/DashboardTrends";
 import { InverterChartCard } from "../components/organisms/InverterChartCard";
 
-import type { Inverter, }  from "../types/interface/inverter.interface";
-import type { DashboardKpi } from "../types/interface/dashboardKpi.interface";
 import type { PlantList2Row } from "../types/interface/plantList2.interface";
 import type { InverterList2Row } from "../types/interface/inverterList.interface";
-import {getUserPlantList2Request, getUserInverterList2Request, getDashboardKpiRequest} from "../apis/index"
-
+import { getUserPlantList2Request, getUserInverterList2Request } from "../apis/index";
 
 function safeArray<T>(v: any): T[] {
   if (Array.isArray(v)) return v as T[];
@@ -56,7 +53,6 @@ export const DashboardPage: React.FC = () => {
       } else {
         const list = safeArray<PlantList2Row>((plantRes as any).plantList2);
         setPlants(list);
-
         const firstId = list?.[0]?.plantId ?? null;
         setSelectedPlantId((prev) => prev ?? firstId);
       }
@@ -96,40 +92,62 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <MainLayout activeMenu="dashboard">
-      <div className="space-y-4">
-        <PageHeaderMetrics pageTitle="대시보드" pageSubtitle="Dashboard" />
+      {/* ✅ 화면에 딱 맞게(헤더 fixed 48px 가정) */}
+      <div className="overflow-hidden flex flex-col gap-3 p-4">
+        {/* 상단 타이틀 */}
+        <div className="shrink-0">
+          <PageHeaderMetrics pageTitle="대시보드" pageSubtitle="Dashboard" />
+          {error && <div className="mt-2 text-sm text-rose-600">{error}</div>}
+          {loading && <div className="mt-1 text-sm text-slate-500">불러오는 중...</div>}
+        </div>
 
-        {error && <div className="text-sm text-rose-600">{error}</div>}
-        {loading && <div className="text-sm text-slate-500">불러오는 중...</div>}
-
-        <div className="grid grid-cols-12 gap-4">
-          {/* LEFT */}
-          <div className="col-span-12 xl:col-span-5 space-y-4">
-            <PlantOverviewCard
-              plant={selectedPlant}
-              plants={plants}
-              selectedPlantId={selectedPlant?.plantId ?? null}
-              onChangePlantId={(id) => setSelectedPlantId(id)}
-            />
-            <InverterStatusTable rows={invRowsForPlant} />
-          </div>
-
-          {/* RIGHT */}
-          <div className="col-span-12 xl:col-span-7 space-y-4">
-            {/*  기존 인버터 목록을 그대로 드롭다운에 사용 */}
-            <KpiStrip token={token} invList2={invRowsForPlant} />
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <DashboardTrends />
-
-              {/* 최신값/시계열 안 쓰면 차트는 placeholder로 */}
-              <InverterChartCard
-                data={[]}
-                title={`${selectedPlant?.plantName ?? "발전소"} 추이`}
-                chartPath="/inverter"
+        {/* 본문 2컬럼 */}
+        <div className="flex-1 min-h-0 grid grid-cols-12 gap-4">
+          {/* LEFT (PPT: 발전소현황 + 인버터현황) */}
+          <div className="col-span-12 xl:col-span-5 min-h-0 flex flex-col gap-4">
+            {/* 발전소 카드(고정 높이) */}
+            <div className="shrink-0">
+              <PlantOverviewCard
+                plant={selectedPlant}
+                plants={plants}
+                selectedPlantId={selectedPlant?.plantId ?? null}
+                onChangePlantId={(id) => setSelectedPlantId(id)}
               />
             </div>
+
+            {/* ✅ 인버터 테이블: 남은 공간 먹고 내부 스크롤 */}
+            <div className="flex-1 min-h-0 overflow-auto">
+              <InverterStatusTable rows={invRowsForPlant} />
+            </div>
           </div>
+
+          {/* RIGHT (PPT: 실시간발전량 + 차트2개) */}
+          <div className="col-span-12 xl:col-span-7 min-h-0 flex flex-col gap-4">
+            {/* ✅ 실시간 발전량: 오른쪽 상단 (고정) */}
+            <div className="shrink-0">
+              <KpiStrip token={token} invList2={invRowsForPlant} plantId={selectedPlantId}/>
+            </div>
+
+            {/* ✅ 차트 영역: 남은 공간을 2등분 */}
+            <div className="flex-1 min-h-0 grid grid-rows-2 gap-4">
+              <div className="min-h-0 overflow-hidden">
+                <div className="h-full">
+                  <DashboardTrends />
+                </div>
+              </div>
+
+              <div className="min-h-0 overflow-hidden">
+                <div className="h-full">
+                  <InverterChartCard
+                    data={[]}
+                    title={`${selectedPlant?.plantName ?? "발전소"} 추이`}
+                    chartPath="/inverter"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </MainLayout>
