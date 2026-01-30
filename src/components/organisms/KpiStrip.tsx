@@ -7,6 +7,7 @@ import type { DashboardKpi } from "../../types/interface/dashboardKpi.interface"
 type Props = {
   token: string;
   invList2: InverterList2Row[]; // 드롭다운 옵션 소스
+  plantId: number | null;
 };
 
 const ZERO_KPI: DashboardKpi = {
@@ -43,7 +44,7 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export const KpiStrip: React.FC<Props> = ({ token, invList2 }) => {
+export const KpiStrip: React.FC<Props> = ({ token, invList2, plantId}) => {
   const [selectedInvId, setSelectedInvId] = React.useState<number | null>(null);
   const [kpi, setKpi] = React.useState<DashboardKpi>(ZERO_KPI);
   const [loading, setLoading] = React.useState(false);
@@ -87,6 +88,7 @@ export const KpiStrip: React.FC<Props> = ({ token, invList2 }) => {
       try {
         const params = {
           invId: selectedInvId ?? undefined,
+          plantId: plantId?? undefined,
         };
 
         const res = await getDashboardKpiRequest(token, params);
@@ -117,7 +119,7 @@ export const KpiStrip: React.FC<Props> = ({ token, invList2 }) => {
     return () => {
       cancelled = true;
     };
-  }, [token, selectedInvId]);
+  }, [token, selectedInvId, plantId]);
 
   // ✅ ADD: 선택된 인버터 row(용량 계산용)
   const selectedInvRow = React.useMemo(() => {
