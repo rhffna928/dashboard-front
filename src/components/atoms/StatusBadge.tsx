@@ -3,7 +3,7 @@ import React from 'react';
 
 interface StatusBadgeProps {
     status: string;
-    value?: string;
+    value?: string| number;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, value }) => {
