@@ -60,7 +60,7 @@ export const PlantOverviewCard: React.FC<Props> = ({
             </div>
 
             <div className="w-full rounded-md overflow-hidden border">
-              <img src={swpenal} alt="solar" className="w-full h-[220px] object-cover" />
+              <img src={swpenal} alt="solar" className="w-full h-[550px] object-cover" />
             </div>
           </>
         )}
