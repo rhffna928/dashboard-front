@@ -323,9 +323,27 @@ export const getDashboardKpiRequest = async (
     const response = await axios.get(GET_USER_INVERTER_LAST(), {
         ...authorization(accessToken),
         params: {
-         invId : params.invId ?? undefined
+         invId : params.invId ?? undefined,
+         plantId : params.plantId ?? undefined
         },
       });
+    return response.data as GetInverterLastResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+
+const GET_USER_INVERTER_HEADER = () => `${API_DOMAIN}/inverters/header`;
+
+export const getUserInverterHeaderRequest = async (
+  accessToken: string
+): Promise<GetInverterLastResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_USER_INVERTER_HEADER(),authorization(accessToken)
+      );
     return response.data as GetInverterLastResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
