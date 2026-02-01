@@ -1,6 +1,7 @@
 // src/components/organisms/PlantTable.tsx
 import React from "react";
 import type { Plant } from "../../types/interface/plant.interface";
+import { Button } from "../atoms/Button";
 
 interface Props {
   plants: Plant[];
@@ -48,12 +49,13 @@ export const PlantTable: React.FC<Props> = ({ plants, onClickDetail }) => {
             <td className="border px-2 py-1 text-center">{p.accessIpYn}</td>
             <td className="border px-2 py-1 text-center">{p.createdAt}</td>
             <td className="border px-2 py-1 text-center">
-              <button
+              <Button
+                variant="blue"
                 className="border px-2 py-1 rounded"
                 onClick={() => onClickDetail(p)}
               >
                 상세
-              </button>
+              </Button>
             </td>
           </tr>
         ))}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { Plant } from "../../types/interface/plant.interface";
+import { Button } from "../atoms/Button";
 
 interface Props {
   open: boolean;
@@ -82,14 +83,14 @@ export const PlantDetailModal: React.FC<Props> = ({ open, plant, onClose, onSave
         <div className="flex gap-2 mb-3">
           {!isEdit && (
             <>
-              <button
+              <Button
                 className="bg-blue-500 text-white px-3 py-1 rounded" onClick={handleClickEdit}>
                 수정
-              </button>
+              </Button>
               
-              <button className="bg-red-500 text-white px-3 py-1 rounded" onClick={handleClickDelete}>
+              <Button className="bg-red-500 text-white px-3 py-1 rounded" onClick={handleClickDelete}>
                 삭제
-              </button>
+              </Button>
             </>
           )}
         </div>

@@ -164,13 +164,14 @@ export const UserMngtPage: React.FC = () => {
                       <td className="px-4 py-3 text-slate-700">{u.memo}</td>
                       <td className="px-4 py-3 text-slate-700">{u.phone}</td>
                       <td className="px-4 py-3 text-center">
-                        <button
+                        <Button
+                          variant="blue"
                           type="button"
                           onClick={() => openDetail(u)}
                           className="px-3 py-1.5 rounded bg-slate-700 text-white hover:bg-slate-800"
                         >
                           상세정보
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))

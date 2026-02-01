@@ -51,7 +51,7 @@ export const signUpRequest = async (requestBody: SignUpRequestDto) => {
     return result;
 }
 
-
+// ---------------------------------유저 정보 관련 API ---------------------------------
 const GET_SIGN_IN_USER_URL = () => `${API_DOMAIN}/user`;
 
 
@@ -62,8 +62,8 @@ export const getSignInUserRequest = async (accessToken:string) => {
             return responseBody;
         })
         .catch(error =>{
-            if(!error.responst) return null;
-            const responseBody: ResponseDto = error.responst.data;
+            if(!error.response) return null;
+            const responseBody: ResponseDto = error.response.data;
             return responseBody;
         });
     return result;
@@ -78,8 +78,8 @@ export const getAdminUsersRequest = async(accessToken: string) => {
             return responseBody;
         })
         .catch(error =>{
-            if(!error.responst) return null;
-            const responseBody: ResponseDto = error.responst.data;
+            if(!error.response) return null;
+            const responseBody: ResponseDto = error.response.data;
             return responseBody;
         });
     return result;
