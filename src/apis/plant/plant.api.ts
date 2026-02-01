@@ -3,7 +3,7 @@ import axios from "axios";
 import type { PlantUpdateRequest } from "./plant.request"; // ✅ 이 줄 꼭
 
 export const fetchPlants = () => {
-  return axios.get("/api/plants").then((res) => res.data);
+  return axios.get("/api/v1/plants").then((res) => res.data);
 };
 
 export const updatePlant = (
@@ -21,7 +21,7 @@ export const updatePlant = (
     : accessToken;
 
   return axios.put(
-    `/api/plants/${id}`,
+    `/api/v1/plants/${id}`,
     body,
     {
       headers: {
@@ -41,7 +41,7 @@ export const deletePlant = (accessToken: string, id: number) => {
     ? accessToken.substring(7).trim()
     : accessToken;
 
-  return axios.delete(`/api/plants/${id}`, {
+  return axios.delete(`/api/v1/plants/${id}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

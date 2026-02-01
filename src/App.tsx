@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CookiesProvider, useCookies } from 'react-cookie';
-import { ALERT_PATH, AUTH_PATH, DMNG_PATH, HIST_PATH, INVT_PATH, MAIN_PATH, PTMNG_PATH, REPT_PATH, TRND_PATH, UMNG_PATH } from './constant';
+import { ALARM_PATH, AUTH_PATH, DMNG_PATH, HIST_PATH, INVT_PATH, MAIN_PATH, PTMNG_PATH, REPT_PATH, TRND_PATH, UMNG_PATH } from './constant';
 import useLoginUserStore from './stores/login-user.store';
 import type { GetSignInUserResponseDto } from 'apis/response/user';
 import type { ResponseDto } from 'apis/response';
@@ -15,7 +15,7 @@ import { InverterPage } from './pages/InverterPage';
 import { TrendPage } from './pages/TrendPage';
 import { ReportPage } from './pages/ReportPage';
 import { HistoryPage } from './pages/HistoryPage';
-import { AlertPage } from './pages/AlertPage';
+import { AlarmPage } from './pages/AlarmPage';
 import { PlantMngtPage } from './pages/PlantMngtPage';
 import { DeviceMngtPage } from './pages/DeviceMngtPage';
 import { UserMngtPage } from './pages/UserMngtPage';
@@ -58,7 +58,7 @@ function App() {
       <Route path={TRND_PATH()} element={<TrendPage />} />
       <Route path={REPT_PATH()} element={<ReportPage />} />
       <Route path={HIST_PATH()} element={<HistoryPage />} />
-      <Route path={ALERT_PATH()} element={<AlertPage />} />
+      <Route path={ALARM_PATH()} element={<AlarmPage />} />
       <Route path={PTMNG_PATH()} element={<PlantMngtPage />} />
       <Route path={DMNG_PATH()} element={<DeviceMngtPage />} />
       <Route path={UMNG_PATH()} element={<UserMngtPage />} />
