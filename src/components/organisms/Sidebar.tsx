@@ -39,7 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeMenu }) => {
     };
     useEffect(() => {
         const token = cookies.accessToken;
-        console.log(token)
         if (!token) {
             logout("세션 만료");
         setError('Error fetching user info');
