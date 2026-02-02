@@ -37,6 +37,7 @@ type InverterHistoryRow = {
 
   recvTime: string;
   regdate: string;
+  bucketTime: string;
 };
 
 type ResponseDto = { code: string; message?: string };
@@ -280,7 +281,7 @@ export const HistoryPage: React.FC = () => {
       번호: idx + 1 + page * PAGE_SIZE,
       설비구분: deviceType,
       설비번호: `INV${String(r.invId).padStart(2, "0")}`,
-      기록시각: formatDateTime(r.regdate),
+      기록시각: formatDateTime(r.bucketTime),
       상태: r.invStatus,
       알람: r.invFault ?? "",
       전압_V: r.inVolt,
@@ -402,7 +403,8 @@ export const HistoryPage: React.FC = () => {
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="text-left font-medium px-4 py-3 w-[80px]">번호</th>
-                  <th className="text-left font-medium px-4 py-3 w-[160px]">기록시각</th>
+                  <th className="text-left font-medium px-4 py-3 w-[80px]">인버터 번호</th>
+                  <th className="text-left font-medium px-4 py-3 w-[200px]">기록시각</th>
                   <th className="text-left font-medium px-4 py-3 w-[90px]">상태</th>
                   <th className="text-left font-medium px-4 py-3 w-[180px]">알람</th>
 
@@ -443,7 +445,8 @@ export const HistoryPage: React.FC = () => {
                   rows.map((r, idx) => (
                     <tr key={r.id} className={cn(idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
                       <td className="px-4 py-3 text-slate-900">{idx + 1 + page * PAGE_SIZE}</td>
-                      <td className="px-4 py-3 text-slate-700">{formatDateTime(r.regdate)}</td>
+                      <td className="px-4 py-3 text-slate-900">{"inv0"+r.invId}</td>
+                      <td className="px-4 py-3 text-slate-700">{formatDateTime(r.bucketTime)}</td>
                       <td className="px-4 py-3 text-slate-900">{r.invStatus}</td>
                       <td className="px-4 py-3 text-slate-700">{r.invFault ?? "-"}</td>
 
