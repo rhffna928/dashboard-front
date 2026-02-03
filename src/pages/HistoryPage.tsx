@@ -7,46 +7,13 @@ import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 import { Button } from "../components/atoms/Button";
 
 import { getInverterHistoryRequest } from "../apis";
+import { getUserPlantList2Request, getUserInverterList2Request } from "../apis/index";
+
 import type { GetInverterHistoryRequestDto } from "../apis/request/inverter";
+import type { InverterHistoryRow } from "../types/interface/inverterHistory.interface";
+import type { PlantList2Row } from "../types/interface/plantList2.interface";
+import type { InverterList2Row } from "../types/interface/inverterList.interface";
 
-// ✅ 서버가 inverters에 담아주는 row 기준
-type InverterHistoryRow = {
-  id: number;
-  plantId: number;
-  invId: number;
-  invStatus: string;
-  invFault?: string | null;
-
-  inVolt: number;
-  inCurrent: number;
-  inPower: number;
-
-  outVolt1: number;
-  outVolt2: number;
-  outVolt3: number;
-
-  outCurrent1: number;
-  outCurrent2: number;
-  outCurrent3: number;
-
-  outPower: number;
-  hz: number;
-
-  todayGen: number;
-  totalGen: number;
-
-  recvTime: string;
-  regdate: string;
-  bucketTime: string;
-};
-
-type ResponseDto = { code: string; message?: string };
-
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-// YYYY-MM-DD
 function toDateInputValue(d: Date) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -54,12 +21,11 @@ function toDateInputValue(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// "2026-01-27" -> "2026-01-27"
+// 서버는 >= from, < toExclusive 형태가 안전하므로 그대로 유지
 function toDateTimeStart(dateStr: string) {
   return `${dateStr}`;
 }
 
-// to는 < 조건이므로 다음날 00:00:00로 보내는 게 안전
 function toDateTimeExclusiveEnd(dateStr: string) {
   const d = new Date(`${dateStr}`);
   d.setDate(d.getDate() + 1);
@@ -95,14 +61,13 @@ function normalizeHistory(
       items: res.inverters as InverterHistoryRow[],
       totalElements: Number(res.totalElements ?? res.inverters.length ?? 0),
       totalPages: Number(res.totalPages ?? 1),
-      pageNumber: Number(res.page ?? fallbackPage), // 서버가 page를 따로 안주면 fallback
+      pageNumber: Number(res.page ?? fallbackPage),
       size: Number(res.size ?? fallbackSize),
     };
   }
   return { items: [], totalElements: 0, totalPages: 1, pageNumber: fallbackPage, size: fallbackSize };
 }
 
-// CSV 다운로드(엑셀 저장)
 function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
   if (!rows || rows.length === 0) return;
 
@@ -118,7 +83,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
     ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
   ];
 
-  const csv = "\uFEFF" + lines.join("\n"); // BOM(한글 깨짐 방지)
+  const csv = "\uFEFF" + lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
@@ -130,11 +95,10 @@ function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
   URL.revokeObjectURL(url);
 }
 
-function arraysEqualNumber(a: number[], b: number[]) {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
+function safeArray<T>(v: any): T[] {
+  if (Array.isArray(v)) return v as T[];
+  if (v == null) return [];
+  return [v as T];
 }
 
 const PAGE_SIZE = 20;
@@ -143,44 +107,83 @@ export const HistoryPage: React.FC = () => {
   const [cookies] = useCookies(["accessToken"]);
   const token: string = cookies.accessToken;
 
-  // ✅ UI: 날짜(스샷처럼)
   const today = React.useMemo(() => new Date(), []);
   const [fromDate, setFromDate] = React.useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 7); // 기본 7일
+    d.setDate(d.getDate() - 7);
     return toDateInputValue(d);
   });
   const [toDate, setToDate] = React.useState(() => toDateInputValue(today));
 
-  // ✅ 설비구분: 지금은 INV 고정 (UI용)
   const deviceType: "INV" = "INV";
 
-  // ✅ 설비번호: ALL 또는 특정 invId (드롭다운)
-  const [invId, setInvId] = React.useState<"ALL" | number>("ALL");
-  const [invIdOptions, setInvIdOptions] = React.useState<number[]>([]);
+  const [plants, setPlants] = React.useState<PlantList2Row[]>([]);
+  const [invList2, setInvList2] = React.useState<InverterList2Row[]>([]);
 
-  // ✅ 시간간격(분 UI → bucketSec)
+  const [plantId, setPlantId] = React.useState<"ALL" | number>("ALL");
+  const [invId, setInvId] = React.useState<"ALL" | number>("ALL");
+
+  // label(분) / value(초)
   const intervalOptions = [
-    { label: "1", min: 60 },
-    { label: "5", min: 300 },
-    { label: "15", min: 900 },
-    { label: "30", min: 1800 },
-    { label: "60", min: 3600 },
+    { label: "1", sec: 1 },
+    { label: "5", sec: 5 },
+    { label: "15", sec: 15 },
+    { label: "30", sec: 30 },
+    { label: "60", sec: 60 },
   ];
   const [bucketSec, setBucketSec] = React.useState<number>(60);
 
-  // ✅ 목록/상태
   const [rows, setRows] = React.useState<InverterHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // ✅ 페이징
   const [page, setPage] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const [totalElements, setTotalElements] = React.useState(0);
 
+  // plantId -> plantName 빠르게 찾기
+  const plantNameById = React.useMemo(() => {
+    const m = new Map<number, string>();
+    plants.forEach((p) => {
+      if (p?.plantId != null) m.set(Number(p.plantId), String((p as any).plantName ?? ""));
+    });
+    return m;
+  }, [plants]);
+
+  // 발전소 선택에 따라 인버터 드롭다운 즉시 바뀜(서버 재조회 불필요)
+  const invRowsForPlant = React.useMemo(() => {
+    if (plantId === "ALL") return invList2;
+    return invList2.filter((x) => Number(x.plantId) === plantId);
+  }, [invList2, plantId]);
+
+  // 목록(발전소/인버터) 로드는 token 바뀔 때 1번만
+  const fetchLists = React.useCallback(async () => {
+    if (!token) return;
+
+    const [plantRes, invRes] = await Promise.all([
+      getUserPlantList2Request(token),
+      getUserInverterList2Request(token),
+    ]);
+
+    if (!plantRes || (plantRes as any).code !== "SU") {
+      setPlants([]);
+      setError((plantRes as any)?.message ?? "발전소 목록 조회 실패");
+    } else {
+      const list = safeArray<PlantList2Row>((plantRes as any).plantList2);
+      setPlants(list);
+    }
+
+    if (!invRes || (invRes as any).code !== "SU") {
+      setInvList2([]);
+      setError((prev) => prev ?? (invRes as any)?.message ?? "인버터 목록 조회 실패");
+    } else {
+      const list = safeArray<InverterList2Row>((invRes as any).inverters);
+      setInvList2(list);
+    }
+  }, [token]);
+
   const fetchHistory = React.useCallback(
-    async (nextPage?: number) => {
+    async (nextPage: number) => {
       if (!token) {
         setError("accessToken이 없습니다. 로그인 후 다시 시도하세요.");
         setRows([]);
@@ -189,17 +192,16 @@ export const HistoryPage: React.FC = () => {
         return;
       }
 
-      const p = typeof nextPage === "number" ? nextPage : page;
-
       setLoading(true);
       setError(null);
 
       const params: GetInverterHistoryRequestDto = {
+        plantId: plantId === "ALL" ? undefined : plantId,
         invId: invId === "ALL" ? undefined : invId,
         from: toDateTimeStart(fromDate),
         to: toDateTimeExclusiveEnd(toDate),
         bucketSec,
-        page: p,
+        page: nextPage,
         size: PAGE_SIZE,
       };
 
@@ -207,11 +209,11 @@ export const HistoryPage: React.FC = () => {
         const res = await getInverterHistoryRequest(token, params);
 
         if (res && isSuccessCode((res as any).code)) {
-          const norm = normalizeHistory(res, p, PAGE_SIZE);
+          const norm = normalizeHistory(res, nextPage, PAGE_SIZE);
           setRows(norm.items);
           setTotalElements(norm.totalElements);
           setTotalPages(norm.totalPages);
-          setPage(p); // 서버가 page 안 주는 구조라 클라 기준으로 유지
+          setPage(nextPage);
         } else if (res) {
           setRows([]);
           setTotalElements(0);
@@ -232,37 +234,19 @@ export const HistoryPage: React.FC = () => {
         setLoading(false);
       }
     },
-    [token, fromDate, toDate, invId, bucketSec, page]
+    [token, plantId, invId, fromDate, toDate, bucketSec]
   );
 
-  // ✅ 최초 1회 로드
+  // token 들어오면 목록 1회 로드
   React.useEffect(() => {
-    fetchHistory(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchLists();
+  }, [fetchLists]);
 
-  // ✅ 핵심: "전체(ALL) 조회 결과"에서 invId 옵션을 누적 수집
-  // - invId가 ALL일 때만
-  // - rows 변경 시에만
-  // - 실제 옵션이 바뀔 때만 setState (무한 렌더/렉 방지)
+  // 필터 바뀌면 0페이지로 자동 조회
   React.useEffect(() => {
-    if (invId !== "ALL") return;
-    if (!rows || rows.length === 0) return;
-
-    const next = Array.from(new Set(rows.map((r) => Number(r.invId)))).sort((a, b) => a - b);
-
-    setInvIdOptions((prev) => {
-      // 누적(이전 + 이번 페이지)로 원하면 아래처럼:
-      const merged = Array.from(new Set([...prev, ...next])).sort((a, b) => a - b);
-      if (arraysEqualNumber(prev, merged)) return prev; // ✅ 변경 없으면 set 안 함
-      return merged;
-    });
-  }, [rows, invId]);
-
-  const onClickView = () => {
     setPage(0);
     fetchHistory(0);
-  };
+  }, [plantId, invId, bucketSec, fromDate, toDate, fetchHistory]);
 
   const goPrev = () => {
     const next = Math.max(0, page - 1);
@@ -277,8 +261,9 @@ export const HistoryPage: React.FC = () => {
   const onClickExcel = () => {
     if (!rows || rows.length === 0) return;
 
-    const csvRows = rows.map((r, idx) => ({
+    const csvRows = rows.map((r: any, idx) => ({
       번호: idx + 1 + page * PAGE_SIZE,
+      발전소: r.plantName ?? plantNameById.get(Number(r.plantId)) ?? `PLANT-${r.plantId}`,
       설비구분: deviceType,
       설비번호: `INV${String(r.invId).padStart(2, "0")}`,
       기록시각: formatDateTime(r.bucketTime),
@@ -307,7 +292,7 @@ export const HistoryPage: React.FC = () => {
       <div className="space-y-6">
         <PageHeaderMetrics pageTitle="기록" pageSubtitle="History" />
 
-        {/* ✅ 필터 */}
+        {/* 필터 */}
         <section className="bg-white border rounded p-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
@@ -329,16 +314,40 @@ export const HistoryPage: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-700">시간간격</div>
-                <select
-                  className="border rounded px-3 py-2 text-sm w-[90px]"
-                  value={bucketSec}
-                  onChange={(e) => setBucketSec(Number(e.target.value))}
-                >
-                  {intervalOptions.map((op) => (
-                    <option key={op.min} value={op.min}>{op.label}</option>
-                  ))}
-                </select>
-                <span className="text-sm text-slate-600">분</span>
+              <select
+                className="border rounded px-3 py-2 text-sm w-[90px]"
+                value={bucketSec}
+                onChange={(e) => setBucketSec(Number(e.target.value))}
+              >
+                {intervalOptions.map((op) => (
+                  <option key={op.sec} value={op.sec}>
+                    {op.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-sm text-slate-600">분</span>
+            </div>
+
+            {/* 발전소구분 */}
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-slate-700">발전소구분</div>
+              <select
+                className="border rounded px-3 py-2 text-sm w-[180px]"
+                value={plantId === "ALL" ? "ALL" : String(plantId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const next = v === "ALL" ? "ALL" : Number(v);
+                  setPlantId(next);
+                  setInvId("ALL"); // 발전소 바뀌면 인버터 선택 리셋
+                }}
+              >
+                <option value="ALL">전체</option>
+                {plants.map((p) => (
+                  <option key={p.plantId} value={String(p.plantId)}>
+                    {(p as any).plantName}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center gap-2">
@@ -348,6 +357,7 @@ export const HistoryPage: React.FC = () => {
               </select>
             </div>
 
+            {/* 설비번호 */}
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-700">설비번호</div>
               <select
@@ -359,19 +369,15 @@ export const HistoryPage: React.FC = () => {
                 }}
               >
                 <option value="ALL">전체</option>
-                {invIdOptions.map((id) => (
-                  <option key={id} value={String(id)}>
-                    INV{String(id).padStart(2, "0")}
+                {invRowsForPlant.map((inv) => (
+                  <option key={inv.invId} value={String(inv.invId)}>
+                    INV{String(inv.invId).padStart(2, "0")}
                   </option>
                 ))}
               </select>
-              {/* ✅ 옵션이 비어있으면: 먼저 "전체(ALL)"로 한번 조회(보기)해서 invId를 모으면 됨 */}
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <Button variant="dark" onClick={onClickView}>
-                보기
-              </Button>
               <Button variant="green" onClick={onClickExcel}>
                 엑셀 저장
               </Button>
@@ -386,12 +392,13 @@ export const HistoryPage: React.FC = () => {
           {error && <div className="mt-3 text-sm text-rose-600">{error}</div>}
         </section>
 
-        {/* ✅ 테이블 */}
+        {/* 테이블 */}
         <section className="bg-white border rounded p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="text-slate-900 font-semibold">
-              [{deviceType === "INV" ? "인버터" : deviceType}] -{" "}
-              {invId === "ALL" ? "전체" : `INV${String(invId).padStart(2, "0")}`}
+              [{deviceType}] -{" "}
+              {plantId === "ALL" ? "발전소: 전체" : `발전소: ${plantId}`} ·{" "}
+              {invId === "ALL" ? "인버터: 전체" : `인버터: INV${String(invId).padStart(2, "0")}`}
             </div>
             <div className="text-sm text-slate-500">
               총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
@@ -403,7 +410,8 @@ export const HistoryPage: React.FC = () => {
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="text-left font-medium px-4 py-3 w-[80px]">번호</th>
-                  <th className="text-left font-medium px-4 py-3 w-[80px]">인버터 번호</th>
+                  <th className="text-left font-medium px-4 py-3 w-[160px]">발전소</th>
+                  <th className="text-left font-medium px-4 py-3 w-[100px]">인버터</th>
                   <th className="text-left font-medium px-4 py-3 w-[200px]">기록시각</th>
                   <th className="text-left font-medium px-4 py-3 w-[90px]">상태</th>
                   <th className="text-left font-medium px-4 py-3 w-[180px]">알람</th>
@@ -431,21 +439,26 @@ export const HistoryPage: React.FC = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={17} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={19} className="px-4 py-10 text-center text-slate-400">
                       불러오는 중...
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={17} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={19} className="px-4 py-10 text-center text-slate-400">
                       조회 결과가 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  rows.map((r, idx) => (
-                    <tr key={r.id} className={cn(idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
+                  rows.map((r: any, idx) => (
+                    <tr key={r.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
                       <td className="px-4 py-3 text-slate-900">{idx + 1 + page * PAGE_SIZE}</td>
-                      <td className="px-4 py-3 text-slate-900">{"inv0"+r.invId}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {r.plantName ?? plantNameById.get(Number(r.plantId)) ?? `PLANT-${r.plantId}`}
+                      </td>
+                      <td className="px-4 py-3 text-slate-900">
+                        INV{String(r.invId).padStart(2, "0")}
+                      </td>
                       <td className="px-4 py-3 text-slate-700">{formatDateTime(r.bucketTime)}</td>
                       <td className="px-4 py-3 text-slate-900">{r.invStatus}</td>
                       <td className="px-4 py-3 text-slate-700">{r.invFault ?? "-"}</td>
@@ -474,7 +487,7 @@ export const HistoryPage: React.FC = () => {
             </table>
           </div>
 
-          {/* ✅ 페이징 */}
+          {/* 페이징 */}
           <div className="flex items-center justify-between mt-4">
             <div className="text-sm text-slate-500">
               총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
@@ -502,4 +515,4 @@ export const HistoryPage: React.FC = () => {
       </div>
     </MainLayout>
   );
-}
+};
