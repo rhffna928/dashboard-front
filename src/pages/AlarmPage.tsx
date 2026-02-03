@@ -6,27 +6,24 @@ import { MainLayout } from "../templates/MainLayout";
 import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 import { Button } from "../components/atoms/Button";
 
-import { getAlramListRequest, getAlramDeviceTypeListRequest } from "../apis";
+import type { PlantList2Row } from "../types/interface/plantList2.interface";
+import type { InverterList2Row } from "../types/interface/inverterList.interface";
 
-// 네 프로젝트의 apis/response 구조에 맞게 타입 import 경로를 조정해줘.
-// (여기서는 페이지 컴포넌트 내부에서 "느슨하게" 대응하도록 any를 쓰지 않기 위해 최소 타입만 정의)
-type ResponseDto = { code: string; message?: string };
+import { getUserPlantList2Request, getUserInverterList2Request } from "../apis/index";
+import { getAlramListRequest } from "../apis";
 
+// ===== types =====
 type AlarmRow = {
   id: number;
   plantId: number;
-  deviceType: string; // ex) "INV"
-  deviceId: string;   // ex) "01"
+  deviceType: string; // "INV"
+  deviceId: string;   // 서버가 내려주는 값 (예: "01")
   deviceName: string;
   alarmMessage: string;
   alarmFlag: string;  // "발생" | "해제" 등
-  alertFlag: string; 
+  alertFlag: string;
   regDate: string; // ISO
 };
-
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 const PAGE_SIZE = 15;
 
@@ -38,10 +35,15 @@ function toDateInputValue(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function formatregDate(isoOrDateTime: string) {
-  // 백엔드가 "2022-05-13T05:57" 같이 올 수도 있어서 안전 처리
-  if (!isoOrDateTime) return "-";
-  return isoOrDateTime.replace("T", " ");
+function formatRegDate(v: string) {
+  if (!v) return "-";
+  return v.replace("T", " ");
+}
+
+function safeArray<T>(v: any): T[] {
+  if (Array.isArray(v)) return v as T[];
+  if (v == null) return [];
+  return [v as T];
 }
 
 /**
@@ -61,7 +63,6 @@ function normalizeAlarmList(
   pageNumber: number; // 0-based
   size: number;
 } {
-  // A) data.content 형태
   const data = res?.data;
   if (data?.content && Array.isArray(data.content)) {
     return {
@@ -73,7 +74,6 @@ function normalizeAlarmList(
     };
   }
 
-  // B) alarms 형태
   if (res?.alarms && Array.isArray(res.alarms)) {
     return {
       items: res.alarms as AlarmRow[],
@@ -84,7 +84,6 @@ function normalizeAlarmList(
     };
   }
 
-  // empty
   return {
     items: [],
     totalElements: 0,
@@ -95,10 +94,11 @@ function normalizeAlarmList(
 }
 
 function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
-  const headers = Object.keys(rows[0] ?? {});
+  if (!rows || rows.length === 0) return;
+
+  const headers = Object.keys(rows[0]);
   const escape = (v: any) => {
     const s = String(v ?? "");
-    // 쉼표/따옴표/개행 방어
     const escaped = s.replaceAll('"', '""');
     return `"${escaped}"`;
   };
@@ -107,7 +107,8 @@ function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
     headers.join(","),
     ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
   ];
-  const csv = "\uFEFF" + lines.join("\n"); // 엑셀 한글 깨짐 방지 BOM
+
+  const csv = "\uFEFF" + lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
@@ -123,7 +124,7 @@ export const AlarmPage: React.FC = () => {
   const [cookies] = useCookies(["accessToken"]);
   const token: string = cookies.accessToken;
 
-  // ✅ 필터 기본값
+  // ===== filters =====
   const today = React.useMemo(() => new Date(), []);
   const [from, setFrom] = React.useState(() => {
     const d = new Date();
@@ -132,99 +133,108 @@ export const AlarmPage: React.FC = () => {
   });
   const [to, setTo] = React.useState(() => toDateInputValue(today));
 
-  // 설비구분(디바이스 타입): 우선 고정 옵션
+  // 발전소
+  const [plants, setPlants] = React.useState<PlantList2Row[]>([]);
+  const [plantId, setPlantId] = React.useState<"ALL" | number>("ALL");
+
+  // 설비구분(타입)
   const deviceTypeOptions = React.useMemo(
     () => [
       { value: "ALL", label: "전체" },
       { value: "INV", label: "인버터" },
-      // 필요 시 확장:
-      // { value: "MTR", label: "계측기" },
-      // { value: "ETC", label: "기타" },
     ],
     []
   );
   const [deviceType, setDeviceType] = React.useState<string>("INV");
 
-  // 설비번호(디바이스 ID) 옵션: API로 받아오기
-  const [deviceIds, setDeviceIds] = React.useState<string[]>([]);
-  const [deviceId, setDeviceId] = React.useState<string>("ALL");
+  // 인버터 목록(plantId 기반)
+  const [invList2, setInvList2] = React.useState<InverterList2Row[]>([]);
+  const [invId, setInvId] = React.useState<"ALL" | number>("ALL");
 
-  // ✅ 목록/상태
+  // ===== list / status =====
   const [alarms, setAlarms] = React.useState<AlarmRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // ✅ 페이징(서버 페이징)
-  const [page, setPage] = React.useState(0); // 0-based
+  // ===== paging =====
+  const [page, setPage] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const [totalElements, setTotalElements] = React.useState(0);
 
-  // plantId가 필요하면 여기에 state 추가해서 params에 넣으면 됨
-  const plantId: number | null = null;
+  // plantId -> plantName lookup
+  const plantNameById = React.useMemo(() => {
+    const m = new Map<number, string>();
+    plants.forEach((p: any) => {
+      if (p?.plantId != null) m.set(Number(p.plantId), String(p?.plantName ?? ""));
+    });
+    return m;
+  }, [plants]);
 
-  const fetchDeviceIds = React.useCallback(async () => {
+  // 발전소 선택에 따른 인버터 리스트
+  const invRowsForPlant = React.useMemo(() => {
+    if (plantId === "ALL") return invList2;
+    return invList2.filter((x: any) => Number(x.plantId) === plantId);
+  }, [invList2, plantId]);
+
+  // ===== 목록 1회 로드 =====
+  const fetchLists = React.useCallback(async () => {
     if (!token) return;
 
-    try {
-      const res = await getAlramDeviceTypeListRequest(token, {
-        plantId,
-        from,
-        to,
-        deviceType: deviceType ?? "ALL",
-      } as any);
+    setError(null);
 
-      if (res && (res as any).code === "SU") {
-        // 응답이 data?: string[] 형태거나, deviceIds 형태일 수 있어서 둘 다 대응
-        const list: string[] =
-          (res as any).data ??
-          (res as any).deviceIds ??
-          [];
+    const [plantRes, invRes] = await Promise.all([
+      getUserPlantList2Request(token),
+      getUserInverterList2Request(token),
+    ]);
 
-        setDeviceIds(list);
-        // 현재 선택값이 옵션에 없으면 ALL로 리셋
-        if (deviceId !== "ALL" && !list.includes(deviceId)) {
-          setDeviceId("ALL");
-        }
-      } else {
-        // 옵션 조회 실패해도 페이지는 살려두되, 옵션은 비움
-        setDeviceIds([]);
-        setDeviceId("ALL");
-      }
-    } catch {
-      setDeviceIds([]);
-      setDeviceId("ALL");
+    if (!plantRes || (plantRes as any).code !== "SU") {
+      setPlants([]);
+      setError((plantRes as any)?.message ?? "발전소 목록 조회 실패");
+    } else {
+      setPlants(safeArray<PlantList2Row>((plantRes as any).plantList2));
     }
-  }, [token, plantId, from, to, deviceType, deviceId]);
 
+    if (!invRes || (invRes as any).code !== "SU") {
+      setInvList2([]);
+      setError((prev) => prev ?? (invRes as any)?.message ?? "인버터 목록 조회 실패");
+    } else {
+      setInvList2(safeArray<InverterList2Row>((invRes as any).inverters));
+    }
+  }, [token]);
+
+  // ===== 알람 조회 =====
   const fetchAlarms = React.useCallback(
-    async (nextPage?: number) => {
+    async (nextPage: number) => {
       if (!token) return;
-      
-      const p = typeof nextPage === "number" ? nextPage : page;
 
       setLoading(true);
       setError(null);
+
+      // ✅ 설비번호 = invId (네 기준)
+      // 서버가 "01" 형태를 기대하면 padStart 유지.
+      // 서버가 "1" 형태를 기대하면 padStart 제거.
+      const invIdParam =
+        invId === "ALL" ? "ALL" : String(invId).padStart(2, "0");
+
       const params = {
-        plantId: plantId ?? undefined,
+        plantId: plantId === "ALL" ? undefined : plantId,
         from,
         to,
         deviceType: deviceType ?? "ALL",
-        deviceId: deviceId ?? "ALL",
-        page: p,
-        size: PAGE_SIZE
-      }
-      
+        deviceId: deviceType === "INV" ? invIdParam : "ALL",
+        page: nextPage,
+        size: PAGE_SIZE,
+      };
+
       try {
-        const res = await getAlramListRequest(token,params);
+        const res = await getAlramListRequest(token, params);
 
         if (res && (res as any).code === "SU") {
-          
-          const norm = normalizeAlarmList(res, p, PAGE_SIZE);
-
+          const norm = normalizeAlarmList(res, nextPage, PAGE_SIZE);
           setAlarms(norm.items);
           setTotalElements(norm.totalElements);
           setTotalPages(norm.totalPages);
-          setPage(norm.pageNumber); // 서버가 number 주면 거기 맞춤
+          setPage(norm.pageNumber);
         } else {
           setAlarms([]);
           setTotalElements(0);
@@ -240,27 +250,25 @@ export const AlarmPage: React.FC = () => {
         setLoading(false);
       }
     },
-    [token, plantId, from, to, deviceType, deviceId, page]
+    [token, plantId, from, to, deviceType, invId]
   );
 
-  // ✅ 최초 로드: 옵션 + 목록
+  // token 들어오면 목록 로드
   React.useEffect(() => {
-    fetchDeviceIds();
-    fetchAlarms(0);
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchLists();
+  }, [fetchLists]);
 
-  // ✅ 설비구분/날짜 변경 시: 설비번호 옵션 갱신 + 페이지 0으로
+  // 발전소 바뀌면 invId 리셋 + 즉시 조회되도록 page도 리셋
+  React.useEffect(() => {
+    setInvId("ALL");
+    setPage(0);
+  }, [plantId]);
+
+  // ✅ 자동조회: 날짜/발전소/설비구분/설비번호 바뀌면 0페이지 조회
   React.useEffect(() => {
     setPage(0);
-    fetchDeviceIds();
-    // deviceId는 fetchDeviceIds 내부에서 존재성 체크로 유지/리셋 처리
-  }, [from, to, deviceType, fetchDeviceIds]);
-
-  const onClickView = () => {
     fetchAlarms(0);
-  };
+  }, [plantId, deviceType, invId, from, to, fetchAlarms]);
 
   const goPrev = () => {
     const next = Math.max(0, page - 1);
@@ -275,15 +283,15 @@ export const AlarmPage: React.FC = () => {
   const onClickExcel = () => {
     if (!alarms || alarms.length === 0) return;
 
-    // 화면 테이블과 동일 컬럼으로 CSV 생성
     const rows = alarms.map((a, idx) => ({
       번호: idx + 1 + page * PAGE_SIZE,
+      발전소: plantNameById.get(Number(a.plantId)) ?? `PLANT-${a.plantId}`,
       설비구분: a.deviceType,
       설비번호: a.deviceId,
       설비이름: a.deviceName,
-      알람내역: a.alarmMessage, // 백엔드가 별도 필드 없어서 동일 값으로 채움(추후 분리 가능)
+      알람내역: a.alarmMessage,
       알람구분: a.alarmFlag,
-      발생시각: formatregDate(a.regDate),
+      발생시각: formatRegDate(a.regDate),
     }));
 
     downloadCsv(`알람_${from}_${to}.csv`, rows);
@@ -294,7 +302,7 @@ export const AlarmPage: React.FC = () => {
       <div className="space-y-6">
         <PageHeaderMetrics pageTitle="알람" pageSubtitle="Alarm" />
 
-        {/* ✅ 필터 영역 */}
+        {/* 필터 */}
         <section className="bg-white border rounded p-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
@@ -314,12 +322,37 @@ export const AlarmPage: React.FC = () => {
               />
             </div>
 
+            {/* 발전소구분 */}
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-slate-700">발전소구분</div>
+              <select
+                className="border rounded px-3 py-2 text-sm w-[180px]"
+                value={plantId === "ALL" ? "ALL" : String(plantId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const next = v === "ALL" ? "ALL" : Number(v);
+                  setPlantId(next);
+                }}
+              >
+                <option value="ALL">전체</option>
+                {plants.map((p: any) => (
+                  <option key={p.plantId} value={String(p.plantId)}>
+                    {p.plantName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 설비구분 */}
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-700">설비구분</div>
               <select
                 className="border rounded px-3 py-2 text-sm w-[140px]"
                 value={deviceType}
-                onChange={(e) => setDeviceType(e.target.value)}
+                onChange={(e) => {
+                  setDeviceType(e.target.value);
+                  setInvId("ALL"); // 설비구분 바뀌면 설비번호 의미가 달라질 수 있어서 리셋
+                }}
               >
                 {deviceTypeOptions.map((op) => (
                   <option key={op.value} value={op.value}>
@@ -329,54 +362,57 @@ export const AlarmPage: React.FC = () => {
               </select>
             </div>
 
+            {/* 설비번호 (invId) */}
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-700">설비번호</div>
               <select
-                className="border rounded px-3 py-2 text-sm w-[160px]"
-                value={deviceId}
-                onChange={(e) => setDeviceId(e.target.value)}
+                className="border rounded px-3 py-2 text-sm w-[180px]"
+                value={invId === "ALL" ? "ALL" : String(invId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setInvId(v === "ALL" ? "ALL" : Number(v));
+                }}
+                disabled={deviceType !== "INV"}
               >
                 <option value="ALL">전체</option>
-                {deviceIds.map((id) => (
-                  <option key={id} value={id}>
-                    INV{id}
+                {invRowsForPlant.map((inv: any) => (
+                  <option key={inv.invId} value={String(inv.invId)}>
+                    INV{String(inv.invId).padStart(2, "0")}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="dark"
-                onClick={onClickView}
-              >
-                보기
-              </Button>
-
-              <Button
-                variant="green"
-                onClick={onClickExcel}
-              >
+              <Button variant="green" onClick={onClickExcel}>
                 엑셀 저장
               </Button>
             </div>
           </div>
         </section>
 
-        {/* ✅ 테이블 */}
+        {/* 테이블 */}
         <section className="bg-white border rounded p-6">
-          <div className="text-slate-900 font-semibold mb-4">알람 목록</div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-slate-900 font-semibold">알람 목록</div>
+            <div className="text-sm text-slate-500">
+              총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
+            </div>
+          </div>
+
+          {error && <div className="mb-3 text-sm text-rose-600">{error}</div>}
 
           <div className="border rounded overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="text-left font-medium px-4 py-3 w-[80px]">번호</th>
-                  <th className="text-left font-medium px-4 py-3 w-[120px]">설비구분</th>
+                  <th className="text-left font-medium px-4 py-3 w-[160px]">발전소</th>
+                  <th className="text-left font-medium px-4 py-3 w-[100px]">설비구분</th>
                   <th className="text-left font-medium px-4 py-3 w-[120px]">설비번호</th>
-                  <th className="text-left font-medium px-4 py-3 w-[180px]">발생일시</th>
+                  <th className="text-left font-medium px-4 py-3 w-[200px]">발생일시</th>
                   <th className="text-left font-medium px-4 py-3 w-[120px]">알람구분</th>
-                  <th className="text-left font-medium px-4 py-3  w-[120px]">알람내역</th>
+                  <th className="text-left font-medium px-4 py-3">알람내역</th>
                 </tr>
               </thead>
 
@@ -387,12 +423,6 @@ export const AlarmPage: React.FC = () => {
                       불러오는 중...
                     </td>
                   </tr>
-                ) : error ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-rose-600">
-                      {error}
-                    </td>
-                  </tr>
                 ) : alarms.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
@@ -401,15 +431,18 @@ export const AlarmPage: React.FC = () => {
                   </tr>
                 ) : (
                   alarms.map((a, idx) => (
-                    <tr key={a.id} className={cn(idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
-                      <td className="px-4 py-3 text-slate-900">
-                        {idx + 1 + page * PAGE_SIZE}
+                    <tr key={a.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
+                      <td className="px-4 py-3 text-slate-900">{idx + 1 + page * PAGE_SIZE}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {plantNameById.get(Number(a.plantId)) ?? `PLANT-${a.plantId}`}
                       </td>
                       <td className="px-4 py-3 text-slate-900">{a.deviceType}</td>
-                      <td className="px-4 py-3 text-slate-900">{a.deviceId}</td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {formatregDate(a.regDate)}
+                      <td className="px-4 py-3 text-slate-900">
+                        {a.deviceType === "INV"
+                          ? `INV${String(a.deviceId).padStart(2, "0")}`
+                          : a.deviceId}
                       </td>
+                      <td className="px-4 py-3 text-slate-700">{formatRegDate(a.regDate)}</td>
                       <td className="px-4 py-3 text-slate-900">{a.alarmFlag}</td>
                       <td className="px-4 py-3 text-slate-700">{a.alarmMessage}</td>
                     </tr>
@@ -419,17 +452,17 @@ export const AlarmPage: React.FC = () => {
             </table>
           </div>
 
-          {/* ✅ 페이징 */}
+          {/* 페이징 */}
           <div className="flex items-center justify-between mt-4">
             <div className="text-sm text-slate-500">
               총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
                 onClick={goPrev}
                 disabled={page <= 0 || loading}
+                type="button"
               >
                 이전
               </button>
@@ -437,6 +470,7 @@ export const AlarmPage: React.FC = () => {
                 className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
                 onClick={goNext}
                 disabled={page >= totalPages - 1 || loading}
+                type="button"
               >
                 다음
               </button>
