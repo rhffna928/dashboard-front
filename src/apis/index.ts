@@ -254,7 +254,7 @@ export const getAlramDeviceTypeListRequest = async (
   }
 };
 
-const GET_INVERTER_HISTORY_LIST = () => `${API_DOMAIN}/inverters`;
+const GET_INVERTER_HISTORY_LIST = () => `${API_DOMAIN}/inverters/history`;
 
 export const getInverterHistoryRequest = async (
   accessToken: string,
