@@ -313,7 +313,7 @@ export const getUserInverterList2Request = async (
   }
 };
 
-const GET_USER_INVERTER_LAST = () => `${API_DOMAIN}/inverters/usr`;
+const GET_USER_INVERTER_LAST = () => `${API_DOMAIN}/inverters/kpi`;
 
 export const getDashboardKpiRequest = async (
   accessToken: string,

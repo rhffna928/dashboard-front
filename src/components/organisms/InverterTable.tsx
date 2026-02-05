@@ -131,6 +131,27 @@ export const InverterTable: React.FC<Props> = ({
       {/* ✅ 필터 영역 (AlarmPage 스타일) */}
       <section className="bg-white border rounded p-4">
         <div className="flex items-center gap-4 flex-wrap">
+          {/* 발전소구분 */}
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-slate-700">발전소구분</div>
+              <select
+                className="border rounded px-3 py-2 text-sm w-[180px]"
+                value={plantId === "ALL" ? "ALL" : String(plantId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const next = v === "ALL" ? "ALL" : Number(v);
+                  setPlantId(next);
+                  setInvId("ALL"); // 발전소 바뀌면 인버터 선택 리셋
+                }}
+              >
+                <option value="ALL">전체</option>
+                {plants.map((p) => (
+                  <option key={p.plantId} value={String(p.plantId)}>
+                    {(p as any).plantName}
+                  </option>
+                ))}
+              </select>
+            </div>
           <div className="flex items-center gap-2">
             <div className="text-sm text-slate-700">설비구분</div>
             <select
