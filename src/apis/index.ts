@@ -127,6 +127,8 @@ export const putAdminUserUpdateRequest = async (
   }
 };
 
+// -----------------------------------------------------------------------------------
+
 const GET_INVERTER_LIST = () => `${API_DOMAIN}/invt_list2`;
 
 export const getInverterListRequest = async (
@@ -201,6 +203,84 @@ export const deleteInverterRequest = async (
     return error.response.data as ResponseDto;
   }
 };
+
+// -----------------------------------------------------------------------------------
+
+const GET_PLANT_LIST = () => `${API_DOMAIN}/invt_list2`;
+
+export const getPlantListRequest = async (
+  accessToken: string
+): Promise<GetInverterResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(
+      GET_PLANT_LIST()
+      ,authorization(accessToken) // <-- headers config
+    );
+    return response.data as GetInverterResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const CREATE_PLANT_LIST = () => `${API_DOMAIN}/invt_list2/create`;
+
+
+export const createPlantListRequest = async (
+  requestBody: CreateInverterRequestDto,
+  accessToken: string
+): Promise<CreateInverterResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.post(
+      CREATE_PLANT_LIST()
+      ,requestBody
+      ,authorization(accessToken)
+    );
+    return response.data as CreateInverterResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const PUT_UPDATE_PLANT = (id: number) => `${API_DOMAIN}/invt_list2/${encodeURIComponent(id)}`;
+
+export const putUpdatePlantRequest = async (
+  id: number,
+  requestBody: UpdateInverterRequestDto,
+  accessToken: string
+): Promise<UpdateInverterResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.put(
+      PUT_UPDATE_PLANT(id),
+      requestBody,
+      authorization(accessToken) 
+    );
+    return response.data as UpdateInverterResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+const DELETE_PALNT = (id: number) => `${API_DOMAIN}/invt_list2/${encodeURIComponent(id)}`;
+
+export const deletePlantRequest = async (
+  id: number,
+  accessToken: string
+): Promise<DeleteInverterResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.delete(
+      DELETE_PALNT(id),
+      authorization(accessToken) 
+    );
+    return response.data as DeleteInverterResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
 
 
 const GET_ALRAM_LIST = () => `${API_DOMAIN}/alarm/list`;
@@ -350,3 +430,6 @@ export const getUserInverterHeaderRequest = async (
     return error.response.data as ResponseDto;
   }
 };
+
+
+// ----------------------
