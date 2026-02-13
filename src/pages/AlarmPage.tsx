@@ -40,10 +40,18 @@ function formatRegDate(v: string) {
   return v.replace("T", " ");
 }
 
+// ✅ 안전 배열: 객체면 빈 배열로 (이상한 shape가 섞여도 옵션이 망가지지 않게)
 function safeArray<T>(v: any): T[] {
   if (Array.isArray(v)) return v as T[];
-  if (v == null) return [];
-  return [v as T];
+  return [];
+}
+
+// ✅ INV 표시용: 이미 2자리 이상이면 그대로, 1자리면 0패딩
+function prettyInvId(id: any) {
+  const s = String(id ?? "");
+  if (!s) return "-";
+  if (s.length >= 2) return s;
+  return s.padStart(2, "0");
 }
 
 /**
@@ -147,9 +155,9 @@ export const AlarmPage: React.FC = () => {
   );
   const [deviceType, setDeviceType] = React.useState<string>("INV");
 
-  // 인버터 목록(plantId 기반)
+  // ✅ 인버터 선택값은 string으로 유지 ("01" 같은 값 보존)
   const [invList2, setInvList2] = React.useState<InverterList2Row[]>([]);
-  const [invId, setInvId] = React.useState<"ALL" | number>("ALL");
+  const [invId, setInvId] = React.useState<"ALL" | string>("ALL");
 
   // ===== list / status =====
   const [alarms, setAlarms] = React.useState<AlarmRow[]>([]);
@@ -170,11 +178,39 @@ export const AlarmPage: React.FC = () => {
     return m;
   }, [plants]);
 
-  // 발전소 선택에 따른 인버터 리스트
-  const invRowsForPlant = React.useMemo(() => {
+  // ✅ 발전소 선택에 따른 인버터 리스트 (plantId가 ALL이면 전체)
+  const invRowsForPlantRaw = React.useMemo(() => {
     if (plantId === "ALL") return invList2;
-    return invList2.filter((x: any) => Number(x.plantId) === plantId);
+    return invList2.filter((x: any) => Number(x.plantId) === Number(plantId));
   }, [invList2, plantId]);
+
+  // ✅ 핵심: 옵션 중복 제거
+  // - plantId=ALL일 때는 같은 invId가 plant마다 있을 수 있으니
+  //   화면에는 "INV02"가 여러 번 보일 수 있음.
+  //   여기서는 "INV02"만 보여주고 싶다면 invId 기준으로 유니크 처리.
+  // - plantId가 특정 값이면 plantId+invId 기준으로 유니크 처리.
+  const invRowsForPlant = React.useMemo(() => {
+    const list = invRowsForPlantRaw;
+
+    const seen = new Set<string>();
+    const out: InverterList2Row[] = [];
+
+    for (const inv of list as any[]) {
+      const pid = Number(inv?.plantId ?? 0);
+      const iid = String(inv?.invId ?? "");
+      if (!iid) continue;
+
+      const key =
+        plantId === "ALL"
+          ? `inv:${iid}`               // ✅ 전체에서는 invId만 유니크
+          : `plant:${pid}-inv:${iid}`; // ✅ 특정 plant에서는 plantId+invId 유니크
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(inv as InverterList2Row);
+    }
+    return out;
+  }, [invRowsForPlantRaw, plantId]);
 
   // ===== 목록 1회 로드 =====
   const fetchLists = React.useCallback(async () => {
@@ -210,11 +246,10 @@ export const AlarmPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // ✅ 설비번호 = invId (네 기준)
-      // 서버가 "01" 형태를 기대하면 padStart 유지.
-      // 서버가 "1" 형태를 기대하면 padStart 제거.
-      const invIdParam =
-        invId === "ALL" ? "ALL" : String(invId).padStart(2, "0");
+      // ✅ 서버로 보낼 deviceId
+      // - 서버가 "01"을 기대하면 그대로(invId는 string으로 유지)
+      // - 서버가 "1"을 기대하면 여기에서 변환
+      const invIdParam = invId === "ALL" ? "ALL" : String(invId);
 
       const params = {
         plantId: plantId === "ALL" ? undefined : plantId,
@@ -258,13 +293,13 @@ export const AlarmPage: React.FC = () => {
     fetchLists();
   }, [fetchLists]);
 
-  // 발전소 바뀌면 invId 리셋 + 즉시 조회되도록 page도 리셋
+  // 발전소 바뀌면 invId 리셋 + page 리셋
   React.useEffect(() => {
     setInvId("ALL");
     setPage(0);
   }, [plantId]);
 
-  // ✅ 자동조회: 날짜/발전소/설비구분/설비번호 바뀌면 0페이지 조회
+  // 자동조회: 필터 변경 시 0페이지 조회
   React.useEffect(() => {
     setPage(0);
     fetchAlarms(0);
@@ -330,8 +365,7 @@ export const AlarmPage: React.FC = () => {
                 value={plantId === "ALL" ? "ALL" : String(plantId)}
                 onChange={(e) => {
                   const v = e.target.value;
-                  const next = v === "ALL" ? "ALL" : Number(v);
-                  setPlantId(next);
+                  setPlantId(v === "ALL" ? "ALL" : Number(v));
                 }}
               >
                 <option value="ALL">전체</option>
@@ -351,7 +385,7 @@ export const AlarmPage: React.FC = () => {
                 value={deviceType}
                 onChange={(e) => {
                   setDeviceType(e.target.value);
-                  setInvId("ALL"); // 설비구분 바뀌면 설비번호 의미가 달라질 수 있어서 리셋
+                  setInvId("ALL"); // 설비구분 바뀌면 설비번호 리셋
                 }}
               >
                 {deviceTypeOptions.map((op) => (
@@ -370,14 +404,23 @@ export const AlarmPage: React.FC = () => {
                 value={invId === "ALL" ? "ALL" : String(invId)}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setInvId(v === "ALL" ? "ALL" : Number(v));
+                  setInvId(v === "ALL" ? "ALL" : v); // ✅ 문자열 유지
                 }}
                 disabled={deviceType !== "INV"}
               >
                 <option value="ALL">전체</option>
+
                 {invRowsForPlant.map((inv: any) => (
-                  <option key={inv.invId} value={String(inv.invId)}>
-                    INV{String(inv.invId).padStart(2, "0")}
+                  <option
+                    key={
+                      plantId === "ALL"
+                        ? `inv:${String(inv.invId)}`
+                        : `plant:${String(inv.plantId)}-inv:${String(inv.invId)}`
+                    }
+                    value={String(inv.invId)}
+                  >
+                    INV{prettyInvId(inv.invId)}
+                    {inv.invName ? ` - ${inv.invName}` : ""}
                   </option>
                 ))}
               </select>
@@ -439,7 +482,7 @@ export const AlarmPage: React.FC = () => {
                       <td className="px-4 py-3 text-slate-900">{a.deviceType}</td>
                       <td className="px-4 py-3 text-slate-900">
                         {a.deviceType === "INV"
-                          ? `INV${String(a.deviceId).padStart(2, "0")}`
+                          ? `INV${prettyInvId(a.deviceId)}`
                           : a.deviceId}
                       </td>
                       <td className="px-4 py-3 text-slate-700">{formatRegDate(a.regDate)}</td>
