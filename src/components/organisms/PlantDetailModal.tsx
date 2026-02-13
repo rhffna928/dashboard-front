@@ -1,317 +1,346 @@
-import React, { useEffect, useState } from "react";
-import type { Plant } from "../../types/interface/plant.interface";
+// src/components/organisms/PlantDetailModal.tsx
+import React from "react";
 import { Button } from "../atoms/Button";
+import type { PlantList2Row } from "../../types/interface/plantList2.interface";
+import type { UpdatePlantRequestDto } from "../../apis/request/plant_list";
+import type User from "types/interface/user.interface";
 
-interface Props {
+type Props = {
   open: boolean;
-  plant: Plant | null;
+  plant: PlantList2Row | null;
+  users: User[];
+  accessToken: string;
+
   onClose: () => void;
-  onSave: (updated: Plant) => void;
-  onDelete: (id: number) => void;
-}
+  onSaved?: () => void;
+  onDeleted?: () => void;
 
-export const PlantDetailModal: React.FC<Props> = ({ open, plant, onClose, onSave, onDelete }) => {
-  if (!open) return null;
+  onUpdate: (id: number, body: UpdatePlantRequestDto, token: string) => Promise<any>;
+  onDelete: (id: number, token: string) => Promise<any>;
+};
 
-  const [isEdit, setIsEdit] = useState(false);
-  const [form, setForm] = useState<Plant | null>(null);
+const Row = React.memo(function Row(props: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[140px_1fr] border-b last:border-b-0">
+      <div className="bg-slate-50 text-slate-700 text-sm px-3 py-2 flex items-center justify-center">
+        {props.label}
+      </div>
+      <div className="px-3 py-2">{props.children}</div>
+    </div>
+  );
+});
 
-  
-  useEffect(() => {
-    setForm(plant);
-    // esc 닫기
+// 유저 표시 문자열/값 추출 (User 타입이 프로젝트마다 달라서 안전하게)
+const getUserValue = (u: any) => String(u.userId ?? u.id ?? u.username ?? "");
+const getUserLabel = (u: any) => {
+  const id = u.userId ?? u.id ?? u.username ?? "";
+  const name = u.name ?? u.userName ?? u.nickname ?? u.email ?? "";
+  return name ? `${id} - ${name}` : String(id);
+};
+
+export const PlantDetailModal: React.FC<Props> = ({
+  open,
+  plant,
+  users,
+  accessToken,
+  onClose,
+  onSaved,
+  onDeleted,
+  onUpdate,
+  onDelete,
+}) => {
+  const [saving, setSaving] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const [form, setForm] = React.useState<UpdatePlantRequestDto>({
+    plantCode: 0,
+    plantName: "",
+    plantOwner: "",
+    plantMan: "",
+    userId: "",
+    plantCapacity: "",
+    plantPrice: "",
+    address: "",
+    lat: "",
+    lng: "",
+    useYn: "Y",
+    smsYn: "N",
+    infoYn: "",
+    startYmd: "",
+    startYear: "",
+    moduleInfo: "",
+    invInfo: "",
+    getDataSec: 60,
+    yesGen: 0,
+    monthGen: 0,
+    regdate: "",
+  });
+
+  const set = React.useCallback(
+    <K extends keyof UpdatePlantRequestDto>(key: K, value: UpdatePlantRequestDto[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    []
+  );
+
+  const userOptions = React.useMemo(
+    () =>
+      users
+        .map((u: any) => {
+          const value = getUserValue(u);
+          if (!value) return null;
+          return (
+            <option key={value} value={value}>
+              {getUserLabel(u)}
+            </option>
+          );
+        })
+        .filter(Boolean),
+    [users]
+  );
+
+  React.useEffect(() => {
+    if (!open || !plant) return;
+
+    setError(null);
+
+    setForm({
+      plantCode: Number(plant.plantCode ?? 0),
+      plantName: plant.plantName ?? "",
+      plantOwner: plant.plantOwner ?? "",
+      plantMan: plant.plantMan ?? "",
+      userId: plant.userId ?? "",
+      plantCapacity: plant.plantCapacity ?? "",
+      plantPrice: plant.plantPrice ?? "",
+      address: plant.address ?? "",
+      lat: plant.lat ?? "",
+      lng: plant.lng ?? "",
+      useYn: plant.useYn ?? "Y",
+      smsYn: plant.smsYn ?? "N",
+      infoYn: (plant as any).infoYn ?? "",
+      startYmd: plant.startYmd ?? "",
+      startYear: plant.startYear ?? "",
+      moduleInfo: plant.moduleInfo ?? "",
+      invInfo: (plant as any).invInfo ?? "",
+      getDataSec: Number(plant.getDataSec ?? 0),
+      yesGen: Number(plant.yesGen ?? 0),
+      monthGen: Number(plant.monthGen ?? 0),
+      regdate: plant.regDate ?? "",
+    });
+
     const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [plant,onClose]);
+  }, [open, plant, onClose]);
 
-
-
-  const handleClickEdit = () => setIsEdit(true);
-
-
-  
-  const handleClickCancel = () => {
-    if (plant) setForm({ ...plant });
-    setIsEdit(false);
-  };
-
-
-
-  const handleClickSave = async () => {
-    if (!form) return;
-
-    const ok = window.confirm("저장하시겠습니까?");
-    if (!ok) return;
-
-    await onSave(form);
-
-    alert("저장되었습니다.");   // ✅ 추가
-    setIsEdit(false);
-  };
-
-
-  const handleClickDelete = async () => {
+  const submit = React.useCallback(async () => {
     if (!plant) return;
 
-    const ok = window.confirm("발전소 정보를 삭제 하시겠습니까?");
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await onUpdate(plant.plantId, form, accessToken);
+      if (res && res.code === "SU") {
+        onSaved?.();
+        onClose();
+      } else {
+        setError(res?.message ?? "수정 실패");
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "수정 중 오류");
+    } finally {
+      setSaving(false);
+    }
+  }, [accessToken, form, onClose, onSaved, onUpdate, plant]);
+
+  const remove = React.useCallback(async () => {
+    if (!plant) return;
+
+    const ok = window.confirm("정말 삭제하시겠습니까?");
     if (!ok) return;
 
-    await onDelete(plant.id);
-  };
+    setDeleting(true);
+    setError(null);
 
+    try {
+      const res = await onDelete(plant.plantId, accessToken);
+      if (res && res.code === "SU") {
+        onDeleted?.();
+        onClose();
+      } else {
+        setError(res?.message ?? "삭제 실패");
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "삭제 중 오류");
+    } finally {
+      setDeleting(false);
+    }
+  }, [accessToken, onClose, onDelete, onDeleted, plant]);
 
-
-
-  const setField = <K extends keyof Plant>(key: K, value: Plant[K]) => {
-    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
-  };
+  if (!open || !plant) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
-      <div className="relative bg-white w-[720px] rounded-lg shadow-lg p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-bold">발전소 상세정보</div>
-          <button className="text-gray-500" onClick={onClose}>✕</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-3xl rounded-xl bg-white border shadow">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="font-semibold text-slate-900">발전소 상세 / 수정</div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-700">
+            ✕
+          </button>
         </div>
 
-        {/* 상단 버튼 */}
-        <div className="flex gap-2 mb-3">
-          {!isEdit && (
-            <>
-              <Button
-                className="bg-blue-500 text-white px-3 py-1 rounded" onClick={handleClickEdit}>
-                수정
-              </Button>
-              
-              <Button className="bg-red-500 text-white px-3 py-1 rounded" onClick={handleClickDelete}>
-                삭제
-              </Button>
-            </>
+        <div className="px-6 pb-4">
+          {error && (
+            <div className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
           )}
-        </div>
 
+          <div className="border rounded overflow-hidden">
+            <Row label="plant_id">
+              <div className="text-sm text-slate-800">{plant.plantId}</div>
+            </Row>
 
-        {/* 내용 */}
-        <div className="border">
-          <table className="w-full text-sm border-collapse">
-            <tbody>
-              {/* 발전소명 */}
-              <Row
-                label="발전소명"
-                isEdit={isEdit}
-                value={form?.name ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.name ?? ""}
-                    onChange={(e) => setField("name", e.target.value)}
-                  />
-                )}
+            <Row label="plant_code">
+              <input
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={String(form.plantCode)}
+                onChange={(e) => set("plantCode", e.target.value === "" ? 0 : Number(e.target.value))}
               />
+            </Row>
 
-              {/* 접속URL */}
-              <Row
-                label="접속URL"
-                isEdit={isEdit}
-                value={form?.connectUrl ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.connectUrl ?? ""}
-                    onChange={(e) => setField("connectUrl", e.target.value)}
-                  />
-                )}
-              />
+            <Row label="발전소명">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.plantName} onChange={(e) => set("plantName", e.target.value)} />
+            </Row>
 
-              {/* 발전용량 */}
-              <Row
-                label="발전용량(kW)"
-                isEdit={isEdit}
-                value={form?.capacityKw ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.capacityKw ?? ""}
-                    onChange={(e) => setField("capacityKw", Number(e.target.value) as any)}
-                    type="number"
-                    step="0.01"
-                  />
-                )}
-              />
+            <Row label="소유주">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.plantOwner} onChange={(e) => set("plantOwner", e.target.value)} />
+            </Row>
 
-              {/* 발전단가 */}
-              <Row
-                label="발전단가(원)"
-                isEdit={isEdit}
-                value={form?.plantPrice ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.plantPrice ?? ""}
-                    onChange={(e) => setField("plantPrice", e.target.value)}
-                  />
-                )}
-              />
+            <Row label="전문기업">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.plantMan} onChange={(e) => set("plantMan", e.target.value)} />
+            </Row>
 
-              {/* 주소 */}
-              <Row
-                label="주소"
-                isEdit={isEdit}
-                value={form?.address ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.address ?? ""}
-                    onChange={(e) => setField("address", e.target.value)}
-                  />
-                )}
-              />
+            {/* 여기! userId를 select로 */}
+            <Row label="사용자(user_id)">
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={form.userId ?? ""}
+                onChange={(e) => set("userId", e.target.value)}
+              >
+                <option value="">선택</option>
+                {userOptions as any}
+              </select>
+              <div className="mt-1 text-xs text-slate-500">
+                목록에 없으면 admin users API 응답 구조/필드(userId)가 다른지 확인 필요
+              </div>
+            </Row>
 
-              {/* 위도/경도 */}
-              <Row
-                label="위도"
-                isEdit={isEdit}
-                value={form?.lat ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.lat ?? ""}
-                    onChange={(e) => setField("lat", Number(e.target.value) as any)}
-                    type="number"
-                    step="0.000001"
-                  />
-                )}
-              />
-              <Row
-                label="경도"
-                isEdit={isEdit}
-                value={form?.lng ?? ""}
-                renderEdit={() => (
-                  <input
-                    className="border rounded px-2 py-1 w-full"
-                    value={form?.lng ?? ""}
-                    onChange={(e) => setField("lng", Number(e.target.value) as any)}
-                    type="number"
-                    step="0.000001"
-                  />
-                )}
-              />
+            <Row label="용량">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.plantCapacity} onChange={(e) => set("plantCapacity", e.target.value)} />
+            </Row>
 
-              {/* Y/N 항목들 */}
-              <Row
-                label="활성화 여부"
-                isEdit={isEdit}
-                value={form?.activeYn ?? ""}
-                renderEdit={() => (
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={form?.activeYn ?? "N"}
-                    onChange={(e) => setField("activeYn", e.target.value as any)}
-                  >
-                    <option value="Y">Y</option>
-                    <option value="N">N</option>
-                  </select>
-                )}
-              />
-              <Row
-                label="계량기 유무"
-                isEdit={isEdit}
-                value={form?.meterYn ?? ""}
-                renderEdit={() => (
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={form?.meterYn ?? "N"}
-                    onChange={(e) => setField("meterYn", e.target.value as any)}
-                  >
-                    <option value="Y">Y</option>
-                    <option value="N">N</option>
-                  </select>
-                )}
-              />
-              <Row
-                label="센서망 유무"
-                isEdit={isEdit}
-                value={form?.sensorYn ?? ""}
-                renderEdit={() => (
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={form?.sensorYn ?? "N"}
-                    onChange={(e) => setField("sensorYn", e.target.value as any)}
-                  >
-                    <option value="Y">Y</option>
-                    <option value="N">N</option>
-                  </select>
-                )}
-              />
-              <Row
-                label="접속IP 유무"
-                isEdit={isEdit}
-                value={form?.accessIpYn ?? ""}
-                renderEdit={() => (
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={form?.accessIpYn ?? "N"}
-                    onChange={(e) => setField("accessIpYn", e.target.value as any)}
-                  >
-                    <option value="Y">Y</option>
-                    <option value="N">N</option>
-                  </select>
-                )}
-              />
-            </tbody>
-          </table>
-        </div>
+            <Row label="단가(원)">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.plantPrice} onChange={(e) => set("plantPrice", e.target.value)} />
+            </Row>
 
-        {/* 하단 버튼 */}
-        {!isEdit ? (
-          <div className="flex justify-end mt-4">
-            <button
-              className="border px-4 py-2 rounded"
-              onClick={onClose}
-            >
-              닫기
-            </button>
+            <Row label="주소">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.address} onChange={(e) => set("address", e.target.value)} />
+            </Row>
+
+            <Row label="위도(lat)">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={String(form.lat ?? "")} onChange={(e) => set("lat", e.target.value)} />
+            </Row>
+
+            <Row label="경도(lng)">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={String(form.lng ?? "")} onChange={(e) => set("lng", e.target.value)} />
+            </Row>
+
+            <Row label="인버터 수(inv_count)">
+              <div className="text-sm text-slate-800">{plant.invCount}</div>
+            </Row>
+
+            <Row label="활성화(useYn)">
+              <select className="w-full border rounded px-3 py-2 text-sm" value={form.useYn ?? "N"} onChange={(e) => set("useYn", e.target.value)}>
+                <option value="Y">Y</option>
+                <option value="N">N</option>
+              </select>
+            </Row>
+
+            <Row label="SMS(smsYn)">
+              <select className="w-full border rounded px-3 py-2 text-sm" value={form.smsYn ?? "N"} onChange={(e) => set("smsYn", e.target.value)}>
+                <option value="Y">Y</option>
+                <option value="N">N</option>
+              </select>
+            </Row>
+
+            <Row label="start_ymd">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.startYmd} onChange={(e) => set("startYmd", e.target.value)} />
+            </Row>
+
+            <Row label="start_year">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.startYear} onChange={(e) => set("startYear", e.target.value)} />
+            </Row>
+
+            <Row label="module_info">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={form.moduleInfo} onChange={(e) => set("moduleInfo", e.target.value)} />
+            </Row>
+
+            <Row label="get_data_sec">
+              <input
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={String(form.getDataSec)}
+                onChange={(e) => set("getDataSec", e.target.value === "" ? 0 : Number(e.target.value))}
+              />
+            </Row>
+
+            <Row label="yes_gen">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={String(form.yesGen)} onChange={(e) => set("yesGen", e.target.value === "" ? 0 : Number(e.target.value))} />
+            </Row>
+
+            <Row label="month_gen">
+              <input className="w-full border rounded px-3 py-2 text-sm" value={String(form.monthGen)} onChange={(e) => set("monthGen", e.target.value === "" ? 0 : Number(e.target.value))} />
+            </Row>
+
+            <Row label="reg_date">
+              <div className="text-sm text-slate-800">{plant.regDate}</div>
+            </Row>
           </div>
-        ) : (
-          <div className="flex justify-end gap-2 mt-4">
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-              onClick={handleClickSave}
-            >
-              저장
-            </button>
 
-            <button
-              className="border px-4 py-2 rounded"
-              onClick={handleClickCancel}
+          <div className="flex justify-between mt-5">
+            <Button
+              onClick={remove}
+              className="px-5 py-2 rounded bg-rose-600 text-white hover:bg-rose-700 text-sm"
+              disabled={saving || deleting}
             >
-              취소
-            </button>
+              {deleting ? "삭제 중..." : "삭제"}
+            </Button>
+
+            <div className="flex gap-2">
+              <Button
+                primary
+                onClick={submit}
+                className="px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                disabled={saving || deleting}
+              >
+                {saving ? "저장 중..." : "저장"}
+              </Button>
+
+              <Button
+                onClick={onClose}
+                className="px-6 py-2 rounded bg-slate-600 text-white hover:bg-slate-700 text-sm"
+                disabled={saving || deleting}
+              >
+                닫기
+              </Button>
+            </div>
           </div>
-        )}
-
+        </div>
       </div>
     </div>
-  );
-};
-
-const Row: React.FC<{
-  label: string;
-  isEdit: boolean;
-  value: string | number;
-  renderEdit: () => React.ReactNode;
-}> = ({ label, isEdit, value, renderEdit }) => {
-  return (
-    <tr>
-      <td className="border px-2 py-2 bg-slate-50 w-40">{label}</td>
-      <td className="border px-2 py-2">
-        {isEdit ? renderEdit() : value}
-      </td>
-    </tr>
   );
 };
