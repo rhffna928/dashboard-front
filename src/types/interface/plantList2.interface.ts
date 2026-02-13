@@ -17,6 +17,7 @@ export interface PlantList2Row {
   startYmd: string;
   startYear: string;
   moduleInfo: string;
+  invInfo: string;
   getDataSec: number;
   yesGen: number;
   monthGen: number;
