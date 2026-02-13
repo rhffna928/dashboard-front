@@ -2,10 +2,10 @@
 import React from "react";
 import { Button } from "../atoms/Button";
 import type { CreateInverterRequestDto } from "../../apis/request/inverter_list";
-import { fetchPlants } from "../../apis/plant/plant.api";
+import type { GetPlantList2ResponseDto } from "../../apis/response/plant_list";
 
-//  fetchPlants 반환 타입으로 plants 타입 자동 추론
-type Plant = Awaited<ReturnType<typeof fetchPlants>>[number];
+// ✅ 성공 DTO에서 row 타입 직접 추출
+type Plant = GetPlantList2ResponseDto["plantList2"][number];
 
 type Props = {
   open: boolean;
@@ -16,7 +16,7 @@ type Props = {
   onCreate: (body: CreateInverterRequestDto, token: string) => Promise<any>;
 };
 
-//  Row를 컴포넌트 밖으로 빼고 memo
+// Row 컴포넌트 분리 + memo
 const Row = React.memo(function Row(props: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[120px_1fr] border-b last:border-b-0">
@@ -59,7 +59,7 @@ export const InverterCreateModal: React.FC<Props> = ({
     mccbStatus: 0,
   });
 
-  //  입력 핸들러 고정(불필요 리렌더 완화)
+  // 필드 setter
   const set = React.useCallback(
     <K extends keyof CreateInverterRequestDto>(key: K, value: CreateInverterRequestDto[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
@@ -67,20 +67,19 @@ export const InverterCreateModal: React.FC<Props> = ({
     []
   );
 
-  //  select 옵션 memo (타이핑할 때 options 재생성 방지)
+  // select 옵션 - as any 제거
   const plantOptions = React.useMemo(
     () =>
       plants.map((p) => (
-        <option key={(p as any).id ?? (p as any).unitId} value={(p as any).id ?? (p as any).unitId}>
-          {(p as any).id ?? (p as any).unitId}
-          {(p as any).name ? ` - ${(p as any).name}` : ""} (inv_count: {(p as any).invCount ?? (p as any).inv_count})
+        
+        <option key={p.plantId} value={p.plantId}>
+          {p.plantId} - {p.plantName} (inv_count: {p.invCount})
         </option>
       )),
     [plants]
   );
 
-
-  //  unit_id 변경 시 plantId/groupId 동결
+  // unit 변경 시 plantId/groupId 동기화
   const onUnitChange = React.useCallback((unitId: number) => {
     setForm((prev) => ({
       ...prev,
@@ -90,28 +89,19 @@ export const InverterCreateModal: React.FC<Props> = ({
     }));
   }, []);
 
-
-  //  모달 오픈 시 기본값 세팅
+  // 모달 오픈 시 기본값 세팅
   React.useEffect(() => {
+    console.log(plants)
     if (!open) return;
+
     setError(null);
 
-    // esc 닫기
     const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
-    
-    if (plants.length > 0) {
-      const p0 = plants[0] as any;
-      const unit = (p0.plantId ?? p0.unitId) as number;
-      setForm((prev) => ({
-        ...prev,
-        unitId: unit,
-        plantId: unit,
-        groupId: unit,
-      }));
-    }  return () => window.removeEventListener("keydown", onKeyDown);
+
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose, plants]);
 
   const submit = React.useCallback(async () => {
@@ -120,11 +110,14 @@ export const InverterCreateModal: React.FC<Props> = ({
 
     try {
       const res = await onCreate(form, accessToken);
+
       if (res && res.code === "SU") {
         onCreated?.();
         onClose();
       } else {
-        setError(res?.message ?? "등록 실패");
+        if(res?.code === "VF"){
+          setError("값을 입력하세요.");
+        }
       }
     } catch (e: any) {
       setError(e?.message ?? "등록 중 오류");
@@ -156,10 +149,11 @@ export const InverterCreateModal: React.FC<Props> = ({
             <Row label="unit_id">
               <select
                 className="w-full border rounded px-3 py-2 text-sm"
-                value={form.unitId}
+                value={form.unitId ?? ""}
                 onChange={(e) => onUnitChange(Number(e.target.value))}
               >
-                {plantOptions}
+                <option value="" >선택</option>
+                {plantOptions }
               </select>
             </Row>
 
@@ -168,7 +162,6 @@ export const InverterCreateModal: React.FC<Props> = ({
                 className="w-full border rounded px-3 py-2 text-sm"
                 value={form.invId}
                 onChange={(e) => set("invId", e.target.value)}
-                placeholder="예: 01"
               />
             </Row>
 
@@ -185,7 +178,6 @@ export const InverterCreateModal: React.FC<Props> = ({
                 className="w-full border rounded px-3 py-2 text-sm"
                 value={form.invType}
                 onChange={(e) => set("invType", e.target.value)}
-                placeholder="예: HEXPOWER"
               />
             </Row>
 
@@ -202,34 +194,36 @@ export const InverterCreateModal: React.FC<Props> = ({
                 className="w-full border rounded px-3 py-2 text-sm"
                 value={form.invProtocol}
                 onChange={(e) => set("invProtocol", e.target.value)}
-                placeholder="예: HEXPOWER1"
               />
             </Row>
 
             <Row label="용량(kW)">
               <input
                 className="w-full border rounded px-3 py-2 text-sm"
-                inputMode="decimal"
                 value={String(form.invCapacity)}
-                onChange={(e) => set("invCapacity", e.target.value === "" ? 0 : Number(e.target.value))}
+                onChange={(e) =>
+                  set("invCapacity", e.target.value === "" ? 0 : Number(e.target.value))
+                }
               />
             </Row>
 
             <Row label="출력범위(min)">
               <input
                 className="w-full border rounded px-3 py-2 text-sm"
-                inputMode="decimal"
                 value={String(form.minPower)}
-                onChange={(e) => set("minPower", e.target.value === "" ? 0 : Number(e.target.value))}
+                onChange={(e) =>
+                  set("minPower", e.target.value === "" ? 0 : Number(e.target.value))
+                }
               />
             </Row>
 
             <Row label="출력범위(max)">
               <input
                 className="w-full border rounded px-3 py-2 text-sm"
-                inputMode="decimal"
                 value={String(form.maxPower)}
-                onChange={(e) => set("maxPower", e.target.value === "" ? 0 : Number(e.target.value))}
+                onChange={(e) =>
+                  set("maxPower", e.target.value === "" ? 0 : Number(e.target.value))
+                }
               />
             </Row>
 
@@ -250,6 +244,7 @@ export const InverterCreateModal: React.FC<Props> = ({
               variant="blue"
               onClick={submit}
               className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+              disabled={saving}
             >
               {saving ? "저장 중..." : "저장"}
             </Button>
@@ -257,6 +252,7 @@ export const InverterCreateModal: React.FC<Props> = ({
               variant="dark"
               onClick={onClose}
               className="border px-4 py-2 rounded disabled:opacity-60"
+              disabled={saving}
             >
               취소
             </Button>

@@ -1,10 +1,10 @@
 // src/components/organisms/InverterDetailModal.tsx
 import React from "react";
 import { Button } from "../atoms/Button";
-import { fetchPlants } from "../../apis/plant/plant.api";
 import type { UpdateInverterRequestDto } from "../../apis/request/inverter_list";
+import type { GetPlantList2ResponseDto } from "../../apis/response/plant_list";
 
-type Plant = Awaited<ReturnType<typeof fetchPlants>>[number];
+type Plant = GetPlantList2ResponseDto["plantList2"][number];
 
 export type InverterSummary = {
   id: number;
@@ -94,12 +94,12 @@ export const InverterDetailModal: React.FC<Props> = ({
     []
   );
 
+  // select 옵션 - as any 제거
   const plantOptions = React.useMemo(
     () =>
       plants.map((p) => (
-        <option key={(p as any).id ?? (p as any).unitId} value={(p as any).id ?? (p as any).unitId}>
-          {(p as any).id ?? (p as any).unitId}
-          {(p as any).name ? ` - ${(p as any).name}` : ""} (inv_count: {(p as any).invCount ?? (p as any).inv_count})
+        <option key={p.plantId} value={p.plantId}>
+          {p.plantId} - {p.plantName} (inv_count: {p.invCount})
         </option>
       )),
     [plants]
