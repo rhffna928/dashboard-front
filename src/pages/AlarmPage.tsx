@@ -17,10 +17,10 @@ type AlarmRow = {
   id: number;
   plantId: number;
   deviceType: string; // "INV"
-  deviceId: string;   // 서버가 내려주는 값 (예: "01")
+  deviceId: string; // 서버가 내려주는 값 (예: "01")
   deviceName: string;
   alarmMessage: string;
-  alarmFlag: string;  // "발생" | "해제" 등
+  alarmFlag: string; // "발생" | "해제" 등
   alertFlag: string;
   regDate: string; // ISO
 };
@@ -40,18 +40,10 @@ function formatRegDate(v: string) {
   return v.replace("T", " ");
 }
 
-// ✅ 안전 배열: 객체면 빈 배열로 (이상한 shape가 섞여도 옵션이 망가지지 않게)
 function safeArray<T>(v: any): T[] {
   if (Array.isArray(v)) return v as T[];
-  return [];
-}
-
-// ✅ INV 표시용: 이미 2자리 이상이면 그대로, 1자리면 0패딩
-function prettyInvId(id: any) {
-  const s = String(id ?? "");
-  if (!s) return "-";
-  if (s.length >= 2) return s;
-  return s.padStart(2, "0");
+  if (v == null) return [];
+  return [v as T];
 }
 
 /**
@@ -111,10 +103,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
     return `"${escaped}"`;
   };
 
-  const lines = [
-    headers.join(","),
-    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
-  ];
+  const lines = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))];
 
   const csv = "\uFEFF" + lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -130,7 +119,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, any>>) {
 
 export const AlarmPage: React.FC = () => {
   const [cookies] = useCookies(["accessToken"]);
-  const token: string = cookies.accessToken;
+  const token: string = cookies.accessToken ?? "";
 
   // ===== filters =====
   const today = React.useMemo(() => new Date(), []);
@@ -155,8 +144,9 @@ export const AlarmPage: React.FC = () => {
   );
   const [deviceType, setDeviceType] = React.useState<string>("INV");
 
-  // ✅ 인버터 선택값은 string으로 유지 ("01" 같은 값 보존)
+  // ✅ 인버터 목록(plantId 기반)
   const [invList2, setInvList2] = React.useState<InverterList2Row[]>([]);
+  // ✅ 중요: select value 매칭 깨지지 않게 string으로 유지 (padStart는 표시/전송시에만)
   const [invId, setInvId] = React.useState<"ALL" | string>("ALL");
 
   // ===== list / status =====
@@ -178,39 +168,27 @@ export const AlarmPage: React.FC = () => {
     return m;
   }, [plants]);
 
-  // ✅ 발전소 선택에 따른 인버터 리스트 (plantId가 ALL이면 전체)
-  const invRowsForPlantRaw = React.useMemo(() => {
-    if (plantId === "ALL") return invList2;
-    return invList2.filter((x: any) => Number(x.plantId) === Number(plantId));
-  }, [invList2, plantId]);
-
-  // ✅ 핵심: 옵션 중복 제거
-  // - plantId=ALL일 때는 같은 invId가 plant마다 있을 수 있으니
-  //   화면에는 "INV02"가 여러 번 보일 수 있음.
-  //   여기서는 "INV02"만 보여주고 싶다면 invId 기준으로 유니크 처리.
-  // - plantId가 특정 값이면 plantId+invId 기준으로 유니크 처리.
+  // ✅ 발전소 선택에 따른 인버터 리스트
+  // - plantId가 "ALL"이면 invId 중복 제거(스크린샷의 INV02 2개 같은 문제 해결)
+  // - plantId가 특정이면 해당 plantId만
   const invRowsForPlant = React.useMemo(() => {
-    const list = invRowsForPlantRaw;
+    if (plantId === "ALL") {
+      const seen = new Set<string>();
+      const out: InverterList2Row[] = [];
 
-    const seen = new Set<string>();
-    const out: InverterList2Row[] = [];
+      for (const x of invList2) {
+        const raw = String((x as any).invId ?? "");
+        if (!raw) continue;
 
-    for (const inv of list as any[]) {
-      const pid = Number(inv?.plantId ?? 0);
-      const iid = String(inv?.invId ?? "");
-      if (!iid) continue;
-
-      const key =
-        plantId === "ALL"
-          ? `inv:${iid}`               // ✅ 전체에서는 invId만 유니크
-          : `plant:${pid}-inv:${iid}`; // ✅ 특정 plant에서는 plantId+invId 유니크
-
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(inv as InverterList2Row);
+        if (seen.has(raw)) continue;
+        seen.add(raw);
+        out.push(x);
+      }
+      return out;
     }
-    return out;
-  }, [invRowsForPlantRaw, plantId]);
+
+    return invList2.filter((x: any) => Number(x.plantId) === plantId);
+  }, [invList2, plantId]);
 
   // ===== 목록 1회 로드 =====
   const fetchLists = React.useCallback(async () => {
@@ -218,10 +196,7 @@ export const AlarmPage: React.FC = () => {
 
     setError(null);
 
-    const [plantRes, invRes] = await Promise.all([
-      getUserPlantList2Request(token),
-      getUserInverterList2Request(token),
-    ]);
+    const [plantRes, invRes] = await Promise.all([getUserPlantList2Request(token), getUserInverterList2Request(token)]);
 
     if (!plantRes || (plantRes as any).code !== "SU") {
       setPlants([]);
@@ -246,10 +221,9 @@ export const AlarmPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // ✅ 서버로 보낼 deviceId
-      // - 서버가 "01"을 기대하면 그대로(invId는 string으로 유지)
-      // - 서버가 "1"을 기대하면 여기에서 변환
-      const invIdParam = invId === "ALL" ? "ALL" : String(invId);
+      // ✅ 서버가 "01" 형태를 기대하면 padStart 유지.
+      // ✅ 서버가 "1" 형태도 받으면 padStart 제거.
+      const invIdParam = invId === "ALL" ? "ALL" : String(invId).padStart(2, "0");
 
       const params = {
         plantId: plantId === "ALL" ? undefined : plantId,
@@ -299,7 +273,7 @@ export const AlarmPage: React.FC = () => {
     setPage(0);
   }, [plantId]);
 
-  // 자동조회: 필터 변경 시 0페이지 조회
+  // ✅ 자동조회: 필터 바뀌면 0페이지 조회
   React.useEffect(() => {
     setPage(0);
     fetchAlarms(0);
@@ -342,19 +316,9 @@ export const AlarmPage: React.FC = () => {
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-700 w-[44px]">날짜</div>
-              <input
-                type="date"
-                className="border rounded px-3 py-2 text-sm"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-              />
+              <input type="date" className="border rounded px-3 py-2 text-sm" value={from} onChange={(e) => setFrom(e.target.value)} />
               <span className="text-slate-500">~</span>
-              <input
-                type="date"
-                className="border rounded px-3 py-2 text-sm"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-              />
+              <input type="date" className="border rounded px-3 py-2 text-sm" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
 
             {/* 발전소구분 */}
@@ -384,8 +348,9 @@ export const AlarmPage: React.FC = () => {
                 className="border rounded px-3 py-2 text-sm w-[140px]"
                 value={deviceType}
                 onChange={(e) => {
-                  setDeviceType(e.target.value);
-                  setInvId("ALL"); // 설비구분 바뀌면 설비번호 리셋
+                  const next = e.target.value;
+                  setDeviceType(next);
+                  setInvId("ALL"); // 설비구분 바뀌면 설비번호 의미가 달라질 수 있어서 리셋
                 }}
               >
                 {deviceTypeOptions.map((op) => (
@@ -400,29 +365,29 @@ export const AlarmPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-700">설비번호</div>
               <select
-                className="border rounded px-3 py-2 text-sm w-[180px]"
-                value={invId === "ALL" ? "ALL" : String(invId)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setInvId(v === "ALL" ? "ALL" : v); // ✅ 문자열 유지
-                }}
+                className="border rounded px-3 py-2 text-sm w-[220px]"
+                value={invId} // ✅ string 유지
+                onChange={(e) => setInvId(e.target.value)} // ✅ Number() 금지
                 disabled={deviceType !== "INV"}
               >
                 <option value="ALL">전체</option>
 
-                {invRowsForPlant.map((inv: any) => (
-                  <option
-                    key={
-                      plantId === "ALL"
-                        ? `inv:${String(inv.invId)}`
-                        : `plant:${String(inv.plantId)}-inv:${String(inv.invId)}`
-                    }
-                    value={String(inv.invId)}
-                  >
-                    INV{prettyInvId(inv.invId)}
-                    {inv.invName ? ` - ${inv.invName}` : ""}
-                  </option>
-                ))}
+                {invRowsForPlant.map((inv: any) => {
+                  const raw = String(inv.invId ?? "");
+                  if (!raw) return null;
+
+                  // ✅ key는 안정적으로(plant ALL일 때도 충돌 안 나게)
+                  const key = plantId === "ALL" ? `inv:${raw}` : `plant:${String(inv.plantId)}-inv:${raw}`;
+
+                  // ✅ label은 padStart는 표시만
+                  const label = `INV${raw.padStart(2, "0")}${inv.invName ? ` - ${inv.invName}` : ""}`;
+
+                  return (
+                    <option key={key} value={raw}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -476,14 +441,10 @@ export const AlarmPage: React.FC = () => {
                   alarms.map((a, idx) => (
                     <tr key={a.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
                       <td className="px-4 py-3 text-slate-900">{idx + 1 + page * PAGE_SIZE}</td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {plantNameById.get(Number(a.plantId)) ?? `PLANT-${a.plantId}`}
-                      </td>
+                      <td className="px-4 py-3 text-slate-700">{plantNameById.get(Number(a.plantId)) ?? `PLANT-${a.plantId}`}</td>
                       <td className="px-4 py-3 text-slate-900">{a.deviceType}</td>
                       <td className="px-4 py-3 text-slate-900">
-                        {a.deviceType === "INV"
-                          ? `INV${prettyInvId(a.deviceId)}`
-                          : a.deviceId}
+                        {a.deviceType === "INV" ? `INV${String(a.deviceId).padStart(2, "0")}` : a.deviceId}
                       </td>
                       <td className="px-4 py-3 text-slate-700">{formatRegDate(a.regDate)}</td>
                       <td className="px-4 py-3 text-slate-900">{a.alarmFlag}</td>
@@ -501,12 +462,7 @@ export const AlarmPage: React.FC = () => {
               총 {totalElements}건 · {page + 1}/{Math.max(1, totalPages)} 페이지
             </div>
             <div className="flex items-center gap-2">
-              <button
-                className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
-                onClick={goPrev}
-                disabled={page <= 0 || loading}
-                type="button"
-              >
+              <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" onClick={goPrev} disabled={page <= 0 || loading} type="button">
                 이전
               </button>
               <button
