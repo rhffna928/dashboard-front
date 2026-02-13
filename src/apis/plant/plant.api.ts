@@ -1,6 +1,6 @@
 // src/apis/plant/plant.api.ts
 import axios from "axios";
-import type { PlantUpdateRequest } from "./plant.request"; // ✅ 이 줄 꼭
+import type { PlantUpdateRequest } from "./plant.request"; // 이 줄 꼭
 
 export const fetchPlants = () => {
   return axios.get("/api/v1/plants").then((res) => res.data);

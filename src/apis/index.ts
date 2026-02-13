@@ -16,6 +16,8 @@ import type { GetAlarmListResponseDto, GetAlarmDeviceTypeResponseDto } from './r
 import type { GetAlarmListParams, GetAlarmDeviceIdOptionsParams } from './request/alarm';
 import type {GetInverterHistoryResponseDto, GetInverterLastResponseDto} from "./response/inverter";
 import type {GetInverterHistoryRequestDto,GetInverterLastRequestDto} from "./request/inverter";
+import type { CreatePlantResponseDto, DeletePlantResponseDto, GetPlantList2ResponseDto, UpdatePlantResponseDto } from './response/plant_list';
+import type { CreatePlantRequestDto, UpdatePlantRequestDto } from './request/plant_list';
 
 const DOMAIN = 'http://localhost:4000';
 
@@ -206,82 +208,86 @@ export const deleteInverterRequest = async (
 
 // -----------------------------------------------------------------------------------
 
-const GET_PLANT_LIST = () => `${API_DOMAIN}/invt_list2`;
+const GET_PLANT_LIST = () => `${API_DOMAIN}/plants`;
 
 export const getPlantListRequest = async (
   accessToken: string
-): Promise<GetInverterResponseDto | ResponseDto | null> => {
+): Promise<GetPlantList2ResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(
       GET_PLANT_LIST()
       ,authorization(accessToken) // <-- headers config
     );
-    return response.data as GetInverterResponseDto;
+    return response.data as GetPlantList2ResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
 
-const CREATE_PLANT_LIST = () => `${API_DOMAIN}/invt_list2/create`;
+export const fetchPlants = () => {
+  return axios.get("/api/v1/plants").then((res) => res.data);
+};
+
+const CREATE_PLANT_LIST = () => `${API_DOMAIN}/plants/create`;
 
 
 export const createPlantListRequest = async (
-  requestBody: CreateInverterRequestDto,
+  requestBody: CreatePlantRequestDto,
   accessToken: string
-): Promise<CreateInverterResponseDto | ResponseDto | null> => {
+): Promise<CreatePlantResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.post(
       CREATE_PLANT_LIST()
       ,requestBody
       ,authorization(accessToken)
     );
-    return response.data as CreateInverterResponseDto;
+    return response.data as CreatePlantResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
 
-const PUT_UPDATE_PLANT = (id: number) => `${API_DOMAIN}/invt_list2/${encodeURIComponent(id)}`;
+const PUT_UPDATE_PLANT = (id: number) => `${API_DOMAIN}/plants/${encodeURIComponent(id)}`;
 
 export const putUpdatePlantRequest = async (
   id: number,
-  requestBody: UpdateInverterRequestDto,
+  requestBody: UpdatePlantRequestDto,
   accessToken: string
-): Promise<UpdateInverterResponseDto | ResponseDto | null> => {
+): Promise<UpdatePlantResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.put(
       PUT_UPDATE_PLANT(id),
       requestBody,
       authorization(accessToken) 
     );
-    return response.data as UpdateInverterResponseDto;
+    return response.data as UpdatePlantResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
 
-const DELETE_PALNT = (id: number) => `${API_DOMAIN}/invt_list2/${encodeURIComponent(id)}`;
+const DELETE_PALNT = (id: number) => `${API_DOMAIN}/plants/${encodeURIComponent(id)}`;
 
 export const deletePlantRequest = async (
   id: number,
   accessToken: string
-): Promise<DeleteInverterResponseDto | ResponseDto | null> => {
+): Promise<DeletePlantResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.delete(
       DELETE_PALNT(id),
       authorization(accessToken) 
     );
-    return response.data as DeleteInverterResponseDto;
+    return response.data as DeletePlantResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
 
-
+// -----------------------------------------------------------------------------------
 
 const GET_ALRAM_LIST = () => `${API_DOMAIN}/alarm/list`;
 
@@ -334,6 +340,8 @@ export const getAlramDeviceTypeListRequest = async (
   }
 };
 
+// -----------------------------------------------------------------------------------
+
 const GET_INVERTER_HISTORY_LIST = () => `${API_DOMAIN}/inverters/history`;
 
 export const getInverterHistoryRequest = async (
@@ -362,6 +370,7 @@ export const getInverterHistoryRequest = async (
   }
 };
 
+// -----------------------------------------------------------------------------------
 
 const GET_USER_PLANT_LIST2 = () => `${API_DOMAIN}/plants/usr`;
 
@@ -393,6 +402,8 @@ export const getUserInverterList2Request = async (
   }
 };
 
+// -----------------------------------------------------------------------------------
+
 const GET_USER_INVERTER_LAST = () => `${API_DOMAIN}/inverters/kpi`;
 
 export const getDashboardKpiRequest = async (
@@ -414,6 +425,7 @@ export const getDashboardKpiRequest = async (
   }
 };
 
+// -----------------------------------------------------------------------------------
 
 const GET_USER_INVERTER_HEADER = () => `${API_DOMAIN}/inverters/header`;
 
