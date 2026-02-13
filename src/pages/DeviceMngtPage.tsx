@@ -6,8 +6,9 @@ import { MainLayout } from "../templates/MainLayout";
 import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 import { Button } from "../components/atoms/Button";
 
-import { fetchPlants, type PlantSummary } from "../apis/plant/plant.api";
+import type { PlantList2Row } from "../types/interface/plantList2.interface";
 import {
+  getPlantListRequest,
   getInverterListRequest,
   createInverterListRequest,
   putUpdateInverterRequest,
@@ -23,11 +24,17 @@ function cn(...classes: Array<string | false | null | undefined>) {
 
 const PAGE_SIZE = 10;
 
+function safeArray<T>(v: any): T[] {
+  if (Array.isArray(v)) return v as T[];
+  if (v == null) return [];
+  return [v as T];
+}
+
 export const DeviceMngtPage: React.FC = () => {
   const [cookies] = useCookies(["accessToken"]);
   const token: string = cookies.accessToken;
 
-  const [plants, setPlants] = React.useState<PlantSummary[]>([]);
+  const [plants, setPlants] = React.useState<PlantList2Row[]>([]);
   const [inverters, setInverters] = React.useState<InverterSummary[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -45,8 +52,15 @@ export const DeviceMngtPage: React.FC = () => {
     setError(null);
 
     try {
-      const plantRows = await fetchPlants();
-      setPlants(plantRows ?? []);
+      const plantRows = await getPlantListRequest(token);
+      if (!plantRows || (plantRows as any).code !== "SU") {
+        setPlants([]);
+        setError((plantRows as any)?.message ?? "발전소 목록 조회 실패");
+      } else {
+        const list = safeArray<PlantList2Row>((plantRows as any).plantList2);
+        setPlants(list);
+        const firstId = list?.[0]?.plantId ?? null;
+      }
 
       const invRes = await getInverterListRequest(token);
       if (invRes && (invRes as any).code === "SU") {
