@@ -14,7 +14,7 @@ import type { CreateInverterResponseDto, DeleteInverterResponseDto,
    } from './response/inverter_list';
 import type { GetAlarmListResponseDto, GetAlarmDeviceTypeResponseDto } from './response/alarm';
 import type { GetAlarmListParams, GetAlarmDeviceIdOptionsParams } from './request/alarm';
-import type {GetInverterHistoryResponseDto, GetInverterLastResponseDto} from "./response/inverter";
+import type {GetInverterHistoryResponseDto, GetInverterLastResponseDto, GetInverterLatestResponseDto, GetInverterSeriesResponseDto} from "./response/inverter";
 import type {GetInverterHistoryRequestDto,GetInverterLastRequestDto} from "./request/inverter";
 import type { CreatePlantResponseDto, DeletePlantResponseDto, GetPlantList2ResponseDto, UpdatePlantResponseDto } from './response/plant_list';
 import type { CreatePlantRequestDto, UpdatePlantRequestDto } from './request/plant_list';
@@ -445,3 +445,43 @@ export const getUserInverterHeaderRequest = async (
 
 
 // ----------------------
+const GET_INVERTER_LASTEST = () => `${API_DOMAIN}/inverters/lastest`;
+
+export const getInverterLastestRequest = async (
+  accessToken: string,
+  params: GetInverterLastRequestDto
+): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(GET_INVERTER_LASTEST(), {
+        ...authorization(accessToken),
+        params: {
+         invId : params.invId ?? undefined,
+         plantId : params.plantId ?? undefined
+        },
+      });
+    return response.data as GetInverterLatestResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+const GET_INVERTER_SERIES = () => `${API_DOMAIN}/inverters/series/recent`;
+
+export const getInverterSeriesRequest = async (
+  accessToken: string,
+  params: GetInverterLastRequestDto
+): Promise<GetInverterSeriesResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(GET_INVERTER_SERIES(), {
+        ...authorization(accessToken),
+        params: {
+         invId : params.invId ?? undefined,
+         plantId : params.plantId ?? undefined
+        },
+      });
+    return response.data as GetInverterSeriesResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
