@@ -14,8 +14,8 @@ import type { CreateInverterResponseDto, DeleteInverterResponseDto,
    } from './response/inverter_list';
 import type { GetAlarmListResponseDto, GetAlarmDeviceTypeResponseDto } from './response/alarm';
 import type { GetAlarmListParams, GetAlarmDeviceIdOptionsParams } from './request/alarm';
-import type {GetInverterHistoryResponseDto, GetInverterLastResponseDto, GetInverterLatestResponseDto, GetInverterSeriesResponseDto} from "./response/inverter";
-import type {GetInverterHistoryRequestDto,GetInverterLastRequestDto} from "./request/inverter";
+import type {GetInverterDailyResponseDto, GetInverterHistoryResponseDto, GetInverterLastResponseDto, GetInverterLatestResponseDto, GetInverterMonthlyResponseDto, GetInverterSeriesResponseDto, GetInverterYearlyResponseDto} from "./response/inverter";
+import type {GetInverterDailyRequestDto, GetInverterHistoryRequestDto,GetInverterLastRequestDto, GetInverterMonthlyRequestDto, GetInverterYearlyRequestDto} from "./request/inverter";
 import type { CreatePlantResponseDto, DeletePlantResponseDto, GetPlantList2ResponseDto, UpdatePlantResponseDto } from './response/plant_list';
 import type { CreatePlantRequestDto, UpdatePlantRequestDto } from './request/plant_list';
 
@@ -489,61 +489,64 @@ export const getInverterSeriesRequest = async (
 
 
 // ---------보고서(일월년)-------------
-const GET_INVERTER_DAILY = () => `${API_DOMAIN}/inverters/lastest`;
+const GET_INVERTER_DAILY = () => `${API_DOMAIN}/inverters/daily`;
 
 export const getInverterDailyRequest = async (
   accessToken: string,
-  params: GetInverterLastRequestDto
-): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  params: GetInverterDailyRequestDto
+): Promise<GetInverterDailyResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(GET_INVERTER_DAILY(), {
         ...authorization(accessToken),
         params: {
          invId : params.invId ?? undefined,
-         plantId : params.plantId ?? undefined
+         plantId : params.plantId ?? undefined,
+         targetDate : params.targetDate ?? undefined
         },
       });
-    return response.data as GetInverterLatestResponseDto;
+    return response.data as GetInverterDailyResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
-const GET_INVERTER_MONTHLY = () => `${API_DOMAIN}/inverters/lastest`;
+const GET_INVERTER_MONTHLY = () => `${API_DOMAIN}/inverters/monthly`;
 
 export const getInverterMonthlyRequest = async (
   accessToken: string,
-  params: GetInverterLastRequestDto
-): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  params: GetInverterMonthlyRequestDto
+): Promise<GetInverterMonthlyResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(GET_INVERTER_MONTHLY(), {
         ...authorization(accessToken),
         params: {
          invId : params.invId ?? undefined,
-         plantId : params.plantId ?? undefined
+         plantId : params.plantId ?? undefined,
+         targetYearMonth : params.targetYearMonth ?? undefined
         },
       });
-    return response.data as GetInverterLatestResponseDto;
+    return response.data as GetInverterMonthlyResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
   }
 };
-const GET_INVERTER_YEARLY = () => `${API_DOMAIN}/inverters/lastest`;
+const GET_INVERTER_YEARLY = () => `${API_DOMAIN}/inverters/yearly`;
 
 export const getInverterYearlyRequest = async (
   accessToken: string,
-  params: GetInverterLastRequestDto
-): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  params: GetInverterYearlyRequestDto
+): Promise<GetInverterYearlyResponseDto | ResponseDto | null> => {
   try {
     const response = await axios.get(GET_INVERTER_YEARLY(), {
         ...authorization(accessToken),
         params: {
          invId : params.invId ?? undefined,
-         plantId : params.plantId ?? undefined
+         plantId : params.plantId ?? undefined,
+         targetYear : params.targetYear ?? undefined
         },
       });
-    return response.data as GetInverterLatestResponseDto;
+    return response.data as GetInverterYearlyResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
