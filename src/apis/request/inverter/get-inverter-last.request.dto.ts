@@ -1,4 +1,4 @@
-export interface GetInverterLastRequestDto {
+export default interface GetInverterLastRequestDto {
   invId?: number;
   plantId?: number;
 }

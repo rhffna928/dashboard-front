@@ -1,6 +1,6 @@
-import CreateInverterRequestDto from "./create-inverter.request.dto";
-import UpdateInverterRequestDto from "./update-inverter.request.dto";
-import DeleteInverterRequestDto from "./delete-inverter.request.dto";
+import type CreateInverterRequestDto from "./create-inverter.request.dto";
+import type UpdateInverterRequestDto from "./update-inverter.request.dto";
+import type DeleteInverterRequestDto from "./delete-inverter.request.dto";
 
 
 export type {
