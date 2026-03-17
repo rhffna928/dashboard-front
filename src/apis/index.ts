@@ -465,6 +465,7 @@ export const getInverterLastestRequest = async (
     return error.response.data as ResponseDto;
   }
 };
+
 const GET_INVERTER_SERIES = () => `${API_DOMAIN}/inverters/series/recent`;
 
 export const getInverterSeriesRequest = async (
@@ -480,6 +481,69 @@ export const getInverterSeriesRequest = async (
         },
       });
     return response.data as GetInverterSeriesResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+
+
+// ---------보고서(일월년)-------------
+const GET_INVERTER_DAILY = () => `${API_DOMAIN}/inverters/lastest`;
+
+export const getInverterDailyRequest = async (
+  accessToken: string,
+  params: GetInverterLastRequestDto
+): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(GET_INVERTER_DAILY(), {
+        ...authorization(accessToken),
+        params: {
+         invId : params.invId ?? undefined,
+         plantId : params.plantId ?? undefined
+        },
+      });
+    return response.data as GetInverterLatestResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+const GET_INVERTER_MONTHLY = () => `${API_DOMAIN}/inverters/lastest`;
+
+export const getInverterMonthlyRequest = async (
+  accessToken: string,
+  params: GetInverterLastRequestDto
+): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(GET_INVERTER_MONTHLY(), {
+        ...authorization(accessToken),
+        params: {
+         invId : params.invId ?? undefined,
+         plantId : params.plantId ?? undefined
+        },
+      });
+    return response.data as GetInverterLatestResponseDto;
+  } catch (error: any) {
+    if (!error?.response) return null;
+    return error.response.data as ResponseDto;
+  }
+};
+const GET_INVERTER_YEARLY = () => `${API_DOMAIN}/inverters/lastest`;
+
+export const getInverterYearlyRequest = async (
+  accessToken: string,
+  params: GetInverterLastRequestDto
+): Promise<GetInverterLatestResponseDto | ResponseDto | null> => {
+  try {
+    const response = await axios.get(GET_INVERTER_YEARLY(), {
+        ...authorization(accessToken),
+        params: {
+         invId : params.invId ?? undefined,
+         plantId : params.plantId ?? undefined
+        },
+      });
+    return response.data as GetInverterLatestResponseDto;
   } catch (error: any) {
     if (!error?.response) return null;
     return error.response.data as ResponseDto;
