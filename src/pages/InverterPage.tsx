@@ -14,13 +14,31 @@ import { MainLayout } from "../templates/MainLayout";
 import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 import { Button } from "../components/atoms/Button";
 
-import { getUserPlantList2Request, getUserInverterList2Request, getInverterLastestRequest, getInverterSeriesRequest } from "../apis";
+import {
+  getUserPlantList2Request,
+  getUserInverterList2Request,
+  getInverterLastestRequest,
+  getInverterSeriesRequest,
+} from "../apis";
 
 import type { PlantList2Row } from "../types/interface/plantList2.interface";
 import type { InverterList2Row } from "../types/interface/inverterList.interface";
 import type { InverterLatestRow } from "../apis/response/inverter/get-inverter-latest.response.dto";
 import type { InverterSeriesRow } from "../apis/response/inverter/get-inverter-series.response.dto";
 import { InverterInfoModal } from "../components/organisms/InverterInfoModal";
+
+const LINE_COLORS = [
+  "#16a34a",
+  "#2563eb",
+  "#f59e0b",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#ea580c",
+  "#4f46e5",
+  "#65a30d",
+  "#db2777",
+];
 
 function safeArray<T>(v: any): T[] {
   if (Array.isArray(v)) return v as T[];
@@ -36,7 +54,6 @@ function fmtNum(v: any, digits = 1) {
 
 function fmtTime(v: string | null | undefined) {
   if (!v) return "-";
-  // "2021-10-29T11:17:57" or "2021-10-29 11:17:57" 모두 대응
   return v.replace("T", " ");
 }
 
@@ -51,18 +68,34 @@ function parseInvIdToNumber(invId: string) {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * "2026-03-19 15:00:00" -> "15:00"
+ * "2026-03-19T15:00:00" -> "15:00"
+ */
 function bucketToHourLabel(bucketHour: string) {
-  // 예: "2026-03-03 11" -> "11:00"
-  const m = bucketHour.match(/(\d{2})$/);
-  if (m?.[1]) return `${m[1]}:00`;
-  return bucketHour;
+  if (!bucketHour) return "-";
+
+  const normalized = bucketHour.replace("T", " ");
+  const m = normalized.match(/\s(\d{2}):(\d{2}):\d{2}$/);
+  if (m) return `${m[1]}:${m[2]}`;
+
+  return normalized;
 }
+
+type ChartSeriesMeta = {
+  key: string;
+  label: string;
+  color: string;
+  plantId: number;
+  invId: number;
+};
 
 export const InverterPage: React.FC = () => {
   const [cookies] = useCookies(["accessToken"]);
-  const token: string = cookies.accessToken;
+  const token: string = cookies.accessToken ?? "";
 
   const [loading, setLoading] = React.useState(false);
+  const [seriesLoading, setSeriesLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // 필터용 리스트
@@ -80,6 +113,16 @@ export const InverterPage: React.FC = () => {
   // 모달
   const [infoOpen, setInfoOpen] = React.useState(false);
   const [selectedMeta, setSelectedMeta] = React.useState<InverterList2Row | null>(null);
+
+  const plantNameById = React.useMemo(() => {
+    const m = new Map<number, string>();
+    plants.forEach((p: any) => {
+      if (p?.plantId != null) {
+        m.set(Number(p.plantId), String(p?.plantName ?? ""));
+      }
+    });
+    return m;
+  }, [plants]);
 
   const loadLists = React.useCallback(async () => {
     if (!token) return;
@@ -107,6 +150,7 @@ export const InverterPage: React.FC = () => {
 
   const loadLatest = React.useCallback(async () => {
     if (!token) return;
+
     setLoading(true);
     setError(null);
 
@@ -137,38 +181,46 @@ export const InverterPage: React.FC = () => {
     }
   }, [token, plantId, invId]);
 
-  const loadSeries = React.useCallback(
-    async (targetInvId: number | null) => {
-      if (!token || !targetInvId) {
+  const loadSeries = React.useCallback(async () => {
+    if (!token) {
+      setSeriesRows([]);
+      return;
+    }
+
+    setSeriesLoading(true);
+
+    try {
+      const requestParams = {
+        plantId: plantId === "ALL" ? undefined : plantId,
+        invId: invId === "ALL" ? undefined : invId,
+      };
+
+      const res = await getInverterSeriesRequest(token, requestParams as any);
+
+      if (!res) {
         setSeriesRows([]);
         return;
       }
 
-      try {
-        const res = await getInverterSeriesRequest(token, {
-          plantId: plantId === "ALL" ? undefined : plantId,
-          invId: targetInvId,
-        });
-
-        if (!res) {
-          setSeriesRows([]);
-          return;
-        }
-
-        if ((res as any).code !== "SU") {
-          setSeriesRows([]);
-          setError((prev) => prev ?? (res as any).message ?? "시계열 조회 실패");
-          return;
-        }
-
-        setSeriesRows(safeArray<InverterSeriesRow>((res as any).series));
-      } catch (e: any) {
+      if ((res as any).code !== "SU") {
         setSeriesRows([]);
-        setError((prev) => prev ?? e?.message ?? "시계열 조회 중 오류");
+        setError((prev) => prev ?? (res as any).message ?? "시계열 조회 실패");
+        return;
       }
-    },
-    [token, plantId]
-  );
+
+      const rows = safeArray<InverterSeriesRow>((res as any).series);
+      const sorted = [...rows].sort((a, b) =>
+        String(a.bucketHour).localeCompare(String(b.bucketHour))
+      );
+
+      setSeriesRows(sorted);
+    } catch (e: any) {
+      setSeriesRows([]);
+      setError((prev) => prev ?? e?.message ?? "시계열 조회 중 오류");
+    } finally {
+      setSeriesLoading(false);
+    }
+  }, [token, plantId, invId]);
 
   React.useEffect(() => {
     loadLists();
@@ -178,19 +230,9 @@ export const InverterPage: React.FC = () => {
     loadLatest();
   }, [loadLatest]);
 
-  // 최신값이 바뀌면: (1) invId가 ALL이고 row가 1개면 자동으로 그 invId로 그래프 로드
-  //              (2) invId가 선택돼 있으면 그걸로 그래프 로드
   React.useEffect(() => {
-    if (invId !== "ALL") {
-      loadSeries(invId);
-      return;
-    }
-    if (latestRows.length === 1) {
-      loadSeries(latestRows[0].invId);
-      return;
-    }
-    setSeriesRows([]);
-  }, [invId, latestRows, loadSeries]);
+    loadSeries();
+  }, [loadSeries]);
 
   const invOptionsForPlant = React.useMemo(() => {
     if (plantId === "ALL") return invList2;
@@ -201,33 +243,94 @@ export const InverterPage: React.FC = () => {
     const m = new Map<number, number>();
     invList2.forEach((x) => {
       const n = parseInvIdToNumber(x.invId);
-      if (n != null) m.set(n, Number(x.invCapacity ?? 0));
+      if (n != null) m.set(n, Number((x as any).invCapacity ?? 0));
     });
     return m;
   }, [invList2]);
 
   const openInfoModal = (row: InverterLatestRow) => {
-    // 최신 row.invId(숫자) -> invList2.invId(문자열) 매칭
     const meta =
       invList2.find((x) => parseInvIdToNumber(x.invId) === row.invId) ?? null;
     setSelectedMeta(meta);
     setInfoOpen(true);
   };
 
+  const chartSeries = React.useMemo(() => {
+    const map = new Map<string, ChartSeriesMeta>();
+    let colorIndex = 0;
+
+    for (const row of seriesRows) {
+      const key = `p${row.plantId}_i${row.invId}`;
+
+      if (!map.has(key)) {
+        const plantName =
+          plantNameById.get(Number(row.plantId)) ?? `PLANT${row.plantId}`;
+
+        const label =
+          plantId === "ALL"
+            ? `${plantName} / ${toInvLabel(Number(row.invId))}`
+            : `${toInvLabel(Number(row.invId))}`;
+
+        map.set(key, {
+          key,
+          label,
+          color: LINE_COLORS[colorIndex % LINE_COLORS.length],
+          plantId: Number(row.plantId),
+          invId: Number(row.invId),
+        });
+
+        colorIndex += 1;
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.plantId !== b.plantId) return a.plantId - b.plantId;
+      return a.invId - b.invId;
+    });
+  }, [seriesRows, plantId, plantNameById]);
+
   const chartData = React.useMemo(() => {
-    return seriesRows.map((s) => ({
-      hour: bucketToHourLabel(s.bucketHour),
-      value: Number(s.hourGenKwh ?? 0),
-      samples: s.samples,
-    }));
-  }, [seriesRows]);
+    const rowMap = new Map<string, any>();
+
+    for (const row of seriesRows) {
+      const bucketKey = String(row.bucketHour);
+      const seriesKey = `p${row.plantId}_i${row.invId}`;
+
+      if (!rowMap.has(bucketKey)) {
+        rowMap.set(bucketKey, {
+          bucketHour: row.bucketHour,
+          hour: bucketToHourLabel(String(row.bucketHour)),
+        });
+      }
+
+      const target = rowMap.get(bucketKey);
+      target[seriesKey] = Number(row.hourGenKwh ?? 0);
+    }
+
+    const result = Array.from(rowMap.values()).sort((a, b) =>
+      String(a.bucketHour).localeCompare(String(b.bucketHour))
+    );
+
+    for (const row of result) {
+      for (const s of chartSeries) {
+        if (row[s.key] == null) row[s.key] = 0;
+      }
+    }
+
+    return result;
+  }, [seriesRows, chartSeries]);
+
+  const chartTargetText = React.useMemo(() => {
+    if (chartSeries.length === 0) return "그래프 데이터가 없습니다.";
+    if (chartSeries.length === 1) return `대상: ${chartSeries[0].label}`;
+    return `대상: ${chartSeries.length}개 시리즈`;
+  }, [chartSeries]);
 
   return (
     <MainLayout activeMenu="/inverter">
       <div className="space-y-6">
         <PageHeaderMetrics pageTitle="인버터" pageSubtitle="Inverter" />
 
-        {/* 상단 필터/액션 */}
         <section className="bg-white border rounded p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-slate-900 font-semibold">인버터 현황</div>
@@ -240,7 +343,7 @@ export const InverterPage: React.FC = () => {
                   const v = e.target.value;
                   const next = v === "ALL" ? "ALL" : Number(v);
                   setPlantId(next);
-                  setInvId("ALL"); // 발전소 바꾸면 인버터 선택 리셋
+                  setInvId("ALL");
                 }}
               >
                 <option value="ALL">전체 발전소</option>
@@ -272,7 +375,10 @@ export const InverterPage: React.FC = () => {
               </select>
 
               <Button
-                onClick={loadLatest}
+                onClick={() => {
+                  loadLatest();
+                  loadSeries();
+                }}
                 className="px-3 py-2 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 text-sm"
               >
                 새로고침
@@ -286,7 +392,6 @@ export const InverterPage: React.FC = () => {
             </div>
           )}
 
-          {/* 테이블 */}
           <div className="mt-5 border rounded overflow-hidden">
             <table className="w-full text-xs">
               <thead className="bg-slate-50 text-slate-600">
@@ -334,43 +439,45 @@ export const InverterPage: React.FC = () => {
                   </tr>
                 ) : (
                   latestRows.map((r, idx) => {
-                    const inP = Number(r.inPower ?? 0);
-                    const outP = Number(r.outPower ?? 0);
+                    const inP = Number((r as any).inPower ?? 0);
+                    const outP = Number((r as any).outPower ?? 0);
 
-                    const eff =
-                      inP > 0 && outP >= 0 ? (outP / inP) * 100 : 0;
+                    const eff = inP > 0 && outP >= 0 ? (outP / inP) * 100 : 0;
 
-                    const cap = invCapacityMap.get(r.invId) ?? 0;
+                    const cap = invCapacityMap.get((r as any).invId) ?? 0;
                     const util = cap > 0 ? (outP / cap) * 100 : 0;
 
                     return (
-                      <tr key={`${r.id}-${idx}`} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
+                      <tr
+                        key={`${(r as any).id}-${idx}`}
+                        className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}
+                      >
                         <td className="px-3 py-2 text-slate-900">{idx + 1}</td>
-                        <td className="px-3 py-2 text-slate-900">{r.invStatus}</td>
-                        <td className="px-3 py-2 text-slate-700">{r.invFault}</td>
+                        <td className="px-3 py-2 text-slate-900">{(r as any).invStatus}</td>
+                        <td className="px-3 py-2 text-slate-700">{(r as any).invFault}</td>
 
-                        <td className="px-3 py-2 text-right">{fmtNum(r.inVolt, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.inCurrent, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.inPower, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).inVolt, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).inCurrent, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).inPower, 1)}</td>
 
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outVolt1, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outVolt2, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outVolt3, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outVolt1, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outVolt2, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outVolt3, 1)}</td>
 
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outCurrent1, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outCurrent2, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outCurrent3, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outCurrent1, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outCurrent2, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outCurrent3, 1)}</td>
 
-                        <td className="px-3 py-2 text-right">{fmtNum(r.outPower, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).outPower, 1)}</td>
                         <td className="px-3 py-2 text-right">{fmtNum(eff, 2)}</td>
                         <td className="px-3 py-2 text-right">
                           {cap > 0 ? fmtNum(util, 2) : "-"}
                         </td>
 
-                        <td className="px-3 py-2 text-right">{fmtNum(r.hz, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.todayGen, 1)}</td>
-                        <td className="px-3 py-2 text-right">{fmtNum(r.totalGen, 2)}</td>
-                        <td className="px-3 py-2 text-slate-700">{fmtTime(r.recvTime)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).hz, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).todayGen, 1)}</td>
+                        <td className="px-3 py-2 text-right">{fmtNum((r as any).totalGen, 2)}</td>
+                        <td className="px-3 py-2 text-slate-700">{fmtTime((r as any).recvTime)}</td>
 
                         <td className="px-3 py-2 text-center">
                           <button
@@ -390,38 +497,75 @@ export const InverterPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 그래프 */}
-        <section className="bg-white border rounded p-1">
+        <section className="bg-white border rounded p-6">
           <div className="flex items-center justify-between">
             <div className="text-slate-900 font-semibold">그래프</div>
-            <div className="text-xs text-slate-500">
-              {invId === "ALL"
-                ? (latestRows.length === 1 ? `대상: ${toInvLabel(latestRows[0].invId)}` : "인버터를 선택하면 그래프가 표시됩니다.")
-                : `대상: ${toInvLabel(invId)}`}
-            </div>
+            <div className="text-xs text-slate-500">{chartTargetText}</div>
           </div>
 
-          <div className="mt-4 h-[360px]">
-            {chartData.length === 0 ? (
+          <div className="mt-4 h-[420px]">
+            {seriesLoading ? (
+              <div className="h-full flex items-center justify-center text-slate-400">
+                그래프 불러오는 중...
+              </div>
+            ) : chartData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-400">
                 그래프 데이터가 없습니다.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 10, right: 24, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="hour" />
                   <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="value" dot />
+                  <Tooltip
+                    formatter={(value: any, name: any) => [
+                      `${fmtNum(value, 1)} kWh`,
+                      String(name),
+                    ]}
+                    labelFormatter={(label: any, payload: any) => {
+                      const row = payload?.[0]?.payload;
+                      return row?.bucketHour ? fmtTime(row.bucketHour) : String(label);
+                    }}
+                  />
+
+                  {chartSeries.map((series) => (
+                    <Line
+                      key={series.key}
+                      type="monotone"
+                      dataKey={series.key}
+                      name={series.label}
+                      stroke={series.color}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                      connectNulls
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
+
+          {chartSeries.length > 1 && (
+            <div className="mt-4 flex flex-wrap gap-3">
+              {chartSeries.map((series) => (
+                <div key={series.key} className="flex items-center gap-2 text-xs text-slate-600">
+                  <span
+                    className="inline-block w-3 h-3 rounded-full"
+                    style={{ backgroundColor: series.color }}
+                  />
+                  <span>{series.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
-      {/* 상세정보 모달 */}
       <InverterInfoModal
         open={infoOpen}
         inverter={selectedMeta}
