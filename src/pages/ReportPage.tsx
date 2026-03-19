@@ -1,10 +1,13 @@
-// src/pages/ReportPage.tsx
 import React from "react";
 import { useCookies } from "react-cookie";
 
 import { MainLayout } from "../templates/MainLayout";
 import { PageHeaderMetrics } from "../components/organisms/PageHeader";
 import { Button } from "../components/atoms/Button";
+import {
+  GenerationBarChart,
+  type GenerationChartItem,
+} from "../components/organisms/GenerationBarChart";
 
 import type { PlantList2Row } from "../types/interface/plantList2.interface";
 import type { InverterList2Row } from "../types/interface/inverterList.interface";
@@ -292,7 +295,7 @@ export const ReportPage: React.FC = () => {
   React.useEffect(() => {
     if (!token) return;
     fetchReports();
-  }, [token, reportType, fetchReports]);
+  }, [token, fetchReports]);
 
   const { series, pivotRows } = React.useMemo(() => {
     const seriesMap = new Map<string, PivotSeries>();
@@ -353,31 +356,11 @@ export const ReportPage: React.FC = () => {
     };
   }, [rows, plantId, plantNameById, reportType]);
 
-  const chartData = React.useMemo(() => {
+  const chartData: GenerationChartItem[] = React.useMemo(() => {
     return pivotRows.map((row) => ({
       label: row.label,
-      total: row.total,
+      value: row.total,
     }));
-  }, [pivotRows]);
-
-  const maxChartValue = React.useMemo(() => {
-    if (chartData.length === 0) return 0;
-    return Math.max(...chartData.map((item) => item.total), 0);
-  }, [chartData]);
-
-  const summary = React.useMemo(() => {
-    const grandTotal = pivotRows.reduce((acc, cur) => acc + cur.total, 0);
-    const maxRow = pivotRows.reduce<PivotRow | null>((acc, cur) => {
-      if (!acc) return cur;
-      return cur.total > acc.total ? cur : acc;
-    }, null);
-
-    return {
-      grandTotal,
-      periodCount: pivotRows.length,
-      maxLabel: maxRow?.label ?? "-",
-      maxValue: maxRow?.total ?? 0,
-    };
   }, [pivotRows]);
 
   const onClickSearch = () => {
@@ -412,11 +395,10 @@ export const ReportPage: React.FC = () => {
   };
 
   return (
-    <MainLayout activeMenu="/report">
-      <div className="space-y-6">
+    <MainLayout activeMenu="report">
+      <div className="space-y-6 p-4">
         <PageHeaderMetrics pageTitle="보고서" pageSubtitle="Report" />
 
-        {/* 필터 */}
         <section className="bg-white border rounded p-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
@@ -555,93 +537,22 @@ export const ReportPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 요약 */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white border rounded p-4">
-            <div className="text-sm text-slate-500">전체 합계</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-900">
-              {formatNumber(summary.grandTotal)}
-            </div>
-          </div>
+        {error && <div className="text-sm text-rose-600">{error}</div>}
 
-          <div className="bg-white border rounded p-4">
-            <div className="text-sm text-slate-500">최대 구간</div>
-            <div className="mt-2 text-lg font-semibold text-slate-900">
-              {summary.maxLabel}
-            </div>
-            <div className="text-sm text-slate-500">{formatNumber(summary.maxValue)}</div>
-          </div>
+        <GenerationBarChart
+          title={
+            reportType === "DAILY"
+              ? "일간 발전 그래프"
+              : reportType === "MONTHLY"
+              ? "월간 발전 그래프"
+              : "연간 발전 그래프"
+          }
+          data={chartData}
+          loading={loading}
+          height={320}
+          unit="kWh"
+        />
 
-          <div className="bg-white border rounded p-4">
-            <div className="text-sm text-slate-500">구간 수</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-900">
-              {summary.periodCount}
-            </div>
-          </div>
-        </section>
-
-        {/* 바그래프 */}
-        <section className="bg-white border rounded p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-slate-900 font-semibold">
-              {reportType === "DAILY"
-                ? "일간 발전 그래프"
-                : reportType === "MONTHLY"
-                ? "월간 발전 그래프"
-                : "연간 발전 그래프"}
-            </div>
-            <div className="text-sm text-slate-500">
-              기준:{" "}
-              {reportType === "DAILY"
-                ? targetDate
-                : reportType === "MONTHLY"
-                ? targetYearMonth
-                : targetYear}
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="h-[320px] flex items-center justify-center text-slate-400">
-              불러오는 중...
-            </div>
-          ) : chartData.length === 0 ? (
-            <div className="h-[320px] flex items-center justify-center text-slate-400">
-              조회 결과가 없습니다.
-            </div>
-          ) : (
-            <div className="border rounded p-4 overflow-x-auto">
-              <div className="min-w-[720px]">
-                <div className="h-[300px] flex items-end gap-3">
-                  {chartData.map((item, idx) => {
-                    const height =
-                      maxChartValue > 0 ? Math.max((item.total / maxChartValue) * 240, 4) : 4;
-
-                    return (
-                      <div
-                        key={`${item.label}-${idx}`}
-                        className="flex-1 min-w-[32px] flex flex-col items-center justify-end"
-                        title={`${item.label} / ${formatNumber(item.total)}`}
-                      >
-                        <div className="text-[11px] text-slate-500 mb-2">
-                          {formatNumber(item.total)}
-                        </div>
-                        <div
-                          className="w-full max-w-[42px] bg-emerald-500 rounded-t transition-all"
-                          style={{ height: `${height}px` }}
-                        />
-                        <div className="mt-2 text-[11px] text-slate-600 text-center break-all">
-                          {item.label}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* 테이블 */}
         <section className="bg-white border rounded p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="text-slate-900 font-semibold">
@@ -653,8 +564,6 @@ export const ReportPage: React.FC = () => {
             </div>
             <div className="text-sm text-slate-500">총 {pivotRows.length}건</div>
           </div>
-
-          {error && <div className="mb-3 text-sm text-rose-600">{error}</div>}
 
           <div className="border rounded overflow-x-auto">
             <table className="w-full text-sm min-w-[900px]">
